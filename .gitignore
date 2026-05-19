@@ -52,3 +52,34 @@ credentials.json
 
 # Node (if any tooling)
 node_modules/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfplan
+tfplan
+tfplan.binary
+tfplan.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Terraform variable files with secrets — use terraform.tfvars.example as template
+terraform.tfvars
+*.auto.tfvars
+
+# Infracost
+.infracost/
+
+# Checkov cache
+.checkov.cache/
+
+# Pre-commit
+.pre-commit-cache/
+
+# State backups
+backup-*.tfstate
