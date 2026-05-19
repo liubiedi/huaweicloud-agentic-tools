@@ -47,6 +47,18 @@ variable "enable_vpn_gateway" {
   default = false
 }
 
+# LTS IDs are empty on first apply (before 03-security-audit exists).
+# Re-apply after 03-security-audit to wire up flow logging.
+variable "lts_network_log_group_id" {
+  type    = string
+  default = ""
+}
+
+variable "lts_network_log_stream_id" {
+  type    = string
+  default = ""
+}
+
 variable "public_dns_zones" {
   type = list(object({
     name  = string

@@ -3,6 +3,11 @@ output "hub_vpc_id" {
   description = "Hub VPC ID"
 }
 
+output "hub_elb_subnet_id" {
+  value       = huaweicloud_vpc_subnet.firewall.id
+  description = "Firewall subnet ID — used for ELB and WAF placement in the hub VPC"
+}
+
 output "hub_vpc_cidr" {
   value       = huaweicloud_vpc.hub.cidr
   description = "Hub VPC CIDR block"

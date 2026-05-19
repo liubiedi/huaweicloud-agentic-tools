@@ -68,7 +68,9 @@ resource "huaweicloud_identity_agency" "org_access" {
   description           = "Allows the master account to assume roles in this account"
   delegated_domain_name = "op_service"
 
-  all_resources_roles = ["FullAccess"]
+  all_resources_roles {
+    service = "FullAccess"
+  }
 }
 
 # ── Custom cross-account agencies ─────────────────────────────────────────────
@@ -96,5 +98,7 @@ resource "huaweicloud_identity_agency" "terraform_automation" {
   description           = "Agency assumed by CI/CD pipeline Terraform runs"
   delegated_domain_name = "op_service"
 
-  all_resources_roles = ["FullAccess"]
+  all_resources_roles {
+    service = "FullAccess"
+  }
 }

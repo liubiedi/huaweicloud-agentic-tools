@@ -107,17 +107,7 @@ resource "huaweicloud_vpcep_endpoint" "endpoints" {
   tags = local.tags
 }
 
-# ── OBS Built-in VPCEP ────────────────────────────────────────────────────────
-# Create a VPCEP for OBS in each spoke — needed before obs_vpcep_only SCP enforce
-
-resource "huaweicloud_vpcep_endpoint" "obs_endpoint" {
-  service_id  = "cn.${var.home_region}.obs" # built-in OBS endpoint service
-  vpc_id      = length(var.vpc_endpoints) > 0 ? var.vpc_endpoints[0].vpc_id : null
-  enable_dns  = true
-  enable_whitelist = false
-  region      = var.home_region
-
-  tags = local.tags
-
-  count = 0 # disabled by default; enable per-account in spoke composition
-}
+# OBS VPC endpoint must be created per-account in the spoke composition
+# (modules/05-network-spoke or a dedicated spoke env) before enforce_mode is enabled.
+# The built-in service ID follows the pattern: cn.<region>.obs
+# Example: huaweicloud_vpcep_endpoint for "cn.cn-east-3.obs" in each spoke VPC.

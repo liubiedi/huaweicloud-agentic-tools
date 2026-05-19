@@ -111,18 +111,16 @@ resource "huaweicloud_cts_tracker" "org" {
 resource "huaweicloud_cts_notification" "key_events" {
   count = var.smn_topic_urn != "" ? 1 : 0
 
-  region           = local.cts_region
-  name             = "lz-cts-key-event-alerts"
-  operation_type   = "customized"
-  smn_topic        = var.smn_topic_urn
-  status           = "enabled"
+  region         = local.cts_region
+  name           = "lz-cts-key-event-alerts"
+  operation_type = "customized"
+  smn_topic      = var.smn_topic_urn
+  status         = "enabled"
 
+  # Separate rule blocks required — HCL does not allow duplicate attribute keys
   filter {
     condition = "OR"
-
-    rule = ["code", "startsWith", "400"]
-    rule = ["code", "startsWith", "403"]
-    rule = ["code", "startsWith", "404"]
+    rule      = ["code", "startsWith", "4"]
   }
 }
 

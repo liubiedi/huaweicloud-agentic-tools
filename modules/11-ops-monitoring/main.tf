@@ -199,25 +199,22 @@ resource "huaweicloud_fgs_function" "remediate_public_bucket" {
   enterprise_project_id = var.enterprise_project_id
 
   func_code = base64encode(<<-PYTHON
-    import json
-    import logging
-    import huaweicloudsdkobs
+import json
+import logging
 
-    logger = logging.getLogger()
+logger = logging.getLogger()
 
-    def handler(event, context):
-        logger.info("Received event: %s", json.dumps(event))
-        # Extract bucket name from RMS non-compliant notification
-        bucket_name = event.get("resource_id", "")
-        if not bucket_name:
-            logger.error("No resource_id in event")
-            return {"status": "error", "message": "Missing resource_id"}
-
-        logger.info("Remediating public access on bucket: %s", bucket_name)
-        # Block public access — actual SDK call would go here
-        # huaweicloudsdkobs client.set_bucket_acl(bucket=bucket_name, acl="private")
-        return {"status": "success", "bucket": bucket_name, "action": "acl_set_to_private"}
-  PYTHON
+def handler(event, context):
+    logger.info("Received event: %s", json.dumps(event))
+    bucket_name = event.get("resource_id", "")
+    if not bucket_name:
+        logger.error("No resource_id in event")
+        return {"status": "error", "message": "Missing resource_id"}
+    logger.info("Remediating public access on bucket: %s", bucket_name)
+    # TODO: call OBS SDK to set ACL to private
+    # client.set_bucket_acl(bucket=bucket_name, acl="private")
+    return {"status": "success", "bucket": bucket_name, "action": "acl_set_to_private"}
+PYTHON
   )
 
   tags = local.tags
