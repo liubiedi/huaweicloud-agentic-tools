@@ -1,0 +1,23 @@
+framework:
+  - terraform
+
+check:
+  - CKV_HWC_1   # Ensure OBS bucket versioning is enabled
+  - CKV_HWC_2   # Ensure OBS bucket server-side encryption is enabled
+  - CKV_HWC_3   # Ensure OBS bucket logging is enabled
+  - CKV_HWC_4   # Ensure OBS bucket ACL is not public
+  - CKV_HWC_5   # Ensure KMS key rotation is enabled
+  - CKV_HWC_6   # Ensure VPC flow logs are enabled
+  - CKV_HWC_7   # Ensure security groups do not have unrestricted ingress on port 22
+  - CKV_HWC_8   # Ensure security groups do not have unrestricted ingress on port 3389
+
+skip-check:
+  - CKV2_HWC_1  # Skipped: OBS bucket MFA delete (not required for infrastructure state)
+
+soft-fail: false
+
+compact: false
+output: cli
+
+download-external-modules: false
+evaluate-variables: true
