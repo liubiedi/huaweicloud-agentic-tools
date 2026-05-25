@@ -1,0 +1,24 @@
+# envs/00-bootstrap/terraform.tfvars
+#
+# Copy this file to terraform.tfvars and fill in real values.
+# All four variables below are REQUIRED — no defaults.
+#
+# This env creates ONE OBS bucket + ONE KMS key for Terraform state. It uses
+# LOCAL state itself, so the resulting terraform.tfstate stays on your disk.
+
+# ── Required ────────────────────────────────────────────────────────────────
+
+# Region for the OBS state bucket. Pick a region close to where you operate.
+# Suggested: cn-east-3 (Shanghai), cn-north-4 (Beijing), ap-southeast-1 (HK).
+home_region = "cn-east-3"
+
+# Huawei Cloud master-account AK/SK. Marked sensitive; will not appear in
+# `terraform output`. terraform.tfvars is gitignored — DO NOT commit.
+master_access_key = "REPLACE_ME"
+master_secret_key = "REPLACE_ME"
+
+# Globally-unique OBS bucket name for Terraform state.
+# Rules: 3-63 lowercase alphanumeric, dots, or hyphens. Must not exist anywhere
+# else in OBS (globally unique, like S3). Suggest including your org slug:
+#   "<org>-lz-tfstate"  e.g. "myorg-lz-tfstate"
+tfstate_bucket_name = "REPLACE_ME"
