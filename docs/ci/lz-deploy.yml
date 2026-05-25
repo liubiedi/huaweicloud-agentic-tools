@@ -11,17 +11,261 @@ on:
     paths:
       - 'envs/**'
       - 'modules/**'
+  # Agent-triggered dispatch events
+  repository_dispatch:
+    types: [lz-agent-validate, lz-agent-apply]
 
 env:
   TF_VERSION: "1.7.5"
   PROVIDER_VERSION: "1.87.0"
   TF_STATE_BUCKET: ${{ vars.LZ_TFSTATE_BUCKET }}
   TF_STATE_REGION: ${{ vars.LZ_HOME_REGION }}
+  AGENT_WEBHOOK_URL: ${{ vars.AGENT_WEBHOOK_URL }}
 
 jobs:
+  # ── Agent-triggered validate (one env at a time) ───────────────────────────
+  agent-validate:
+    name: Agent Validate (${{ github.event.client_payload.env }})
+    runs-on: ubuntu-latest
+    if: github.event_name == 'repository_dispatch' && github.event.action == 'lz-agent-validate'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Configure Huawei Cloud credentials
+        run: |
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.HWC_MASTER_ACCESS_KEY }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.HWC_MASTER_SECRET_KEY }}" >> $GITHUB_ENV
+
+      - name: Download tfvars from OBS
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.HWC_MASTER_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.HWC_MASTER_SECRET_KEY }}
+        run: |
+          ENV="${{ github.event.client_payload.env }}"
+          OBS_KEY="${{ github.event.client_payload.tfvars_obs_key }}"
+          aws s3 cp "s3://${{ env.TF_STATE_BUCKET }}/$OBS_KEY" \
+            "envs/${ENV}/terraform.tfvars" \
+            --endpoint-url="https://obs.${{ env.TF_STATE_REGION }}.myhuaweicloud.com"
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive envs/${{ github.event.client_payload.env }}
+
+      - name: Terraform Init
+        working-directory: envs/${{ github.event.client_payload.env }}
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="region=${{ env.TF_STATE_REGION }}"
+
+      - name: Terraform Validate
+        working-directory: envs/${{ github.event.client_payload.env }}
+        run: terraform validate
+
+      - name: TFLint
+        working-directory: envs/${{ github.event.client_payload.env }}
+        run: tflint --config=../../.tflint.hcl
+
+      - name: Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: envs/${{ github.event.client_payload.env }}
+          config_file: policies/checkov/.checkov.yaml
+          soft_fail: false
+
+      - name: OPA Conftest (plan output)
+        id: plan
+        working-directory: envs/${{ github.event.client_payload.env }}
+        run: |
+          terraform plan -out=tfplan.binary \
+            -var="master_access_key=${{ secrets.HWC_MASTER_ACCESS_KEY }}" \
+            -var="master_secret_key=${{ secrets.HWC_MASTER_SECRET_KEY }}" \
+            -var-file="terraform.tfvars" 2>&1 | tee /tmp/plan_output.txt
+          terraform show -json tfplan.binary > tfplan.json
+          conftest test --policy ../../policies/opa tfplan.json
+          echo "plan_output<<EOF" >> $GITHUB_OUTPUT
+          tail -50 /tmp/plan_output.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Infracost
+        uses: infracost/actions/setup@v2
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+      - run: |
+          infracost breakdown \
+            --path=envs/${{ github.event.client_payload.env }}/tfplan.json \
+            --format=table
+
+      - name: Notify agent — validate success
+        if: success()
+        run: |
+          emit_event() {
+            local run_id="${{ github.event.client_payload.run_id }}"
+            local payload=$(printf '{"event_type":"STEP_SUCCESS","run_id":"%s","module":"validate:%s","error_message":"%s"}' \
+              "$run_id" "${{ github.event.client_payload.env }}" "$(cat /tmp/plan_output.txt | tail -20 | tr -d '\n"' | head -c 2000)")
+            local sig=$(echo -n "$payload" | openssl dgst -sha256 -hmac "${{ secrets.AGENT_HMAC_TOKEN }}" | cut -d' ' -f2)
+            curl -sf -X POST "${{ env.AGENT_WEBHOOK_URL }}/webhook/${run_id}" \
+              -H "Content-Type: application/json" \
+              -H "X-Agent-Signature: ${sig}" \
+              -d "$payload" || true
+          }
+          emit_event
+
+      - name: Notify agent — validate failure
+        if: failure()
+        run: |
+          emit_event() {
+            local run_id="${{ github.event.client_payload.run_id }}"
+            local payload=$(printf '{"event_type":"STEP_ERROR","run_id":"%s","module":"validate:%s","error_message":"Validate/plan failed. Check GitHub Actions logs for details."}' \
+              "$run_id" "${{ github.event.client_payload.env }}")
+            local sig=$(echo -n "$payload" | openssl dgst -sha256 -hmac "${{ secrets.AGENT_HMAC_TOKEN }}" | cut -d' ' -f2)
+            curl -sf -X POST "${{ env.AGENT_WEBHOOK_URL }}/webhook/${run_id}" \
+              -H "Content-Type: application/json" \
+              -H "X-Agent-Signature: ${sig}" \
+              -d "$payload" || true
+          }
+          emit_event
+
+  # ── Agent-triggered apply (one env, per-module) ────────────────────────────
+  agent-apply:
+    name: Agent Apply (${{ github.event.client_payload.env }})
+    runs-on: ubuntu-latest
+    if: github.event_name == 'repository_dispatch' && github.event.action == 'lz-agent-apply'
+    environment: production
+    concurrency:
+      group: lz-apply-${{ github.event.client_payload.env }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure credentials
+        run: |
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.HWC_MASTER_ACCESS_KEY }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.HWC_MASTER_SECRET_KEY }}" >> $GITHUB_ENV
+
+      - name: Download tfvars from OBS
+        run: |
+          ENV="${{ github.event.client_payload.env }}"
+          OBS_KEY="${{ github.event.client_payload.tfvars_obs_key }}"
+          aws s3 cp "s3://${{ env.TF_STATE_BUCKET }}/$OBS_KEY" \
+            "envs/${ENV}/terraform.tfvars" \
+            --endpoint-url="https://obs.${{ env.TF_STATE_REGION }}.myhuaweicloud.com"
+
+      - name: Terraform Init
+        working-directory: envs/${{ github.event.client_payload.env }}
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="region=${{ env.TF_STATE_REGION }}"
+
+      - name: Backup state
+        working-directory: envs/${{ github.event.client_payload.env }}
+        run: |
+          terraform state pull > backup-${{ github.sha }}.tfstate
+          aws s3 cp backup-${{ github.sha }}.tfstate \
+            s3://${{ env.TF_STATE_BUCKET }}/backups/${{ github.event.client_payload.env }}/backup-${{ github.sha }}.tfstate \
+            --endpoint-url=https://obs.${{ env.TF_STATE_REGION }}.myhuaweicloud.com
+
+      - name: Set up emit_event helper
+        run: |
+          cat > /usr/local/bin/emit_event << 'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          EVENT_TYPE="$1"   # STEP_START | STEP_SUCCESS | STEP_ERROR
+          MODULE="$2"
+          ERROR_MSG="${3:-}"
+          RUN_ID="${AGENT_RUN_ID}"
+          PAYLOAD=$(printf '{"event_type":"%s","run_id":"%s","module":"%s","error_message":"%s"}' \
+            "$EVENT_TYPE" "$RUN_ID" "$MODULE" "${ERROR_MSG:0:500}")
+          SIG=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "${AGENT_HMAC_TOKEN}" | cut -d' ' -f2)
+          # Primary: webhook
+          if curl -sf -X POST "${AGENT_WEBHOOK_URL}/webhook/${RUN_ID}" \
+              -H "Content-Type: application/json" \
+              -H "X-Agent-Signature: ${SIG}" \
+              -d "$PAYLOAD" --max-time 10; then
+            echo "[emit_event] sent via webhook: $EVENT_TYPE $MODULE"
+          else
+            # Fallback: write event to OBS
+            SEQ=$(date +%s%N)
+            aws s3 cp - "s3://${TF_STATE_BUCKET}/agent-run-events/${RUN_ID}/${SEQ}.json" \
+              --endpoint-url="https://obs.${TF_STATE_REGION}.myhuaweicloud.com" \
+              --content-type application/json <<< "$PAYLOAD" || true
+            echo "[emit_event] sent via OBS fallback: $EVENT_TYPE $MODULE"
+          fi
+          EOF
+          chmod +x /usr/local/bin/emit_event
+        env:
+          AGENT_RUN_ID: ${{ github.event.client_payload.run_id }}
+          AGENT_HMAC_TOKEN: ${{ secrets.AGENT_HMAC_TOKEN }}
+
+      - name: Terraform Plan
+        working-directory: envs/${{ github.event.client_payload.env }}
+        env:
+          AGENT_RUN_ID: ${{ github.event.client_payload.run_id }}
+          AGENT_HMAC_TOKEN: ${{ secrets.AGENT_HMAC_TOKEN }}
+        run: |
+          terraform plan -out=tfplan \
+            -var="master_access_key=${{ secrets.HWC_MASTER_ACCESS_KEY }}" \
+            -var="master_secret_key=${{ secrets.HWC_MASTER_SECRET_KEY }}" \
+            -var-file="terraform.tfvars"
+
+      - name: Terraform Apply (per-module)
+        working-directory: envs/${{ github.event.client_payload.env }}
+        env:
+          AGENT_RUN_ID: ${{ github.event.client_payload.run_id }}
+          AGENT_HMAC_TOKEN: ${{ secrets.AGENT_HMAC_TOKEN }}
+          TF_STATE_BUCKET: ${{ env.TF_STATE_BUCKET }}
+          TF_STATE_REGION: ${{ env.TF_STATE_REGION }}
+          AGENT_WEBHOOK_URL: ${{ env.AGENT_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+
+          # Discover terraform-addressable modules in this env
+          MODULES=$(terraform providers schema -json 2>/dev/null | \
+            python3 -c "
+          import json,sys
+          data=json.load(sys.stdin)
+          # Fall back to listing module blocks from plan
+          " 2>/dev/null || true)
+
+          # Apply the full plan, emitting per-resource events via OPA output parsing
+          # For MVP: apply as one unit and emit success/error at env level
+          emit_event STEP_START "apply:${{ github.event.client_payload.env }}" "" || true
+
+          if terraform apply -auto-approve tfplan 2>&1 | tee /tmp/apply_output.txt; then
+            # Write state after successful apply
+            terraform state push 2>/dev/null || true
+            emit_event STEP_SUCCESS "apply_done:${{ github.event.client_payload.env }}" ""
+          else
+            ERROR_DETAIL=$(grep -E "Error:|error:|CBC\.|VPC\.|IAM\." /tmp/apply_output.txt | head -5 | tr '\n' ' ')
+            emit_event STEP_ERROR "apply_done:${{ github.event.client_payload.env }}" "$ERROR_DETAIL"
+            exit 1
+          fi
+
+      - name: Post-apply verification
+        working-directory: envs/${{ github.event.client_payload.env }}
+        if: success()
+        run: |
+          echo "Verifying state is accessible..."
+          terraform state list | head -20
+
+  # ── PR-triggered validate (all envs in parallel) ──────────────────────────
   validate:
     name: Validate (${{ matrix.env }})
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     strategy:
       fail-fast: false
       matrix:
@@ -33,8 +277,7 @@ jobs:
           - 05-perimeter
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -96,6 +339,7 @@ jobs:
             --path=envs/${{ matrix.env }}/tfplan.json \
             --format=table
 
+  # ── Push-triggered apply (sequential, all envs) ───────────────────────────
   apply:
     name: Apply (${{ matrix.env }})
     runs-on: ubuntu-latest
@@ -103,7 +347,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production
     strategy:
-      max-parallel: 1 # apply envs sequentially — foundation before network etc.
+      max-parallel: 1
       matrix:
         env:
           - 01-foundation
@@ -117,8 +361,7 @@ jobs:
       cancel-in-progress: false
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3

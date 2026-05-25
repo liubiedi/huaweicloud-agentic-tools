@@ -1,0 +1,215 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HuaweiCloud Landing Zone LLD",
+  "description": "Validated low-level design document produced by step01_lld_reader.",
+  "type": "object",
+  "properties": {
+    "_metadata": {
+      "type": "object",
+      "description": "Metadata and sign-off info from the Metadata sheet.",
+      "properties": {
+        "project_name": {"type": "string"},
+        "customer": {"type": "string"},
+        "requested_by": {"type": "string"},
+        "cloud_architect": {"type": "string"},
+        "target_region": {"type": "string"},
+        "target_environment": {"type": "string"},
+        "requested_deploy_date": {"type": "string"},
+        "run_id": {"type": ["string", "null"]}
+      }
+    },
+    "D1": {
+      "type": "object",
+      "description": "Org & Accounts — Module 01-org-foundation",
+      "required": ["home_region", "org_name", "log_archive_account_email", "audit_account_email", "identity_center_admin_email"],
+      "properties": {
+        "home_region":                   {"type": "string", "description": "Huawei Cloud home region (e.g. cn-east-3)"},
+        "org_name":                      {"type": "string"},
+        "log_archive_account_name":      {"type": "string", "default": "lz-log-archive"},
+        "log_archive_account_email":     {"type": "string", "format": "email"},
+        "audit_account_name":            {"type": "string", "default": "lz-audit"},
+        "audit_account_email":           {"type": "string", "format": "email"},
+        "enable_identity_center":        {"type": ["boolean", "string"], "default": true},
+        "identity_center_admin_email":   {"type": "string", "format": "email"},
+        "rgc_log_retention_days":        {"type": ["integer", "string", "null"], "default": 365},
+        "enable_workloads_ou":           {"type": ["boolean", "string", "null"], "default": true},
+        "workloads_ou_name":             {"type": ["string", "null"], "default": "Workloads"},
+        "enable_sandbox_ou":             {"type": ["boolean", "string", "null"], "default": true},
+        "sandbox_ou_name":               {"type": ["string", "null"], "default": "Sandbox"},
+        "enable_infrastructure_ou":      {"type": ["boolean", "string", "null"], "default": true},
+        "infrastructure_ou_name":        {"type": ["string", "null"], "default": "Infrastructure"},
+        "security_ops_account_name":     {"type": ["string", "null"], "default": "lz-security-ops"},
+        "security_ops_account_email":    {"type": ["string", "null"]},
+        "network_ops_account_name":      {"type": ["string", "null"], "default": "lz-network-ops"},
+        "network_ops_account_email":     {"type": ["string", "null"]},
+        "ops_monitoring_account_name":   {"type": ["string", "null"], "default": "lz-ops-monitoring"},
+        "ops_monitoring_account_email":  {"type": ["string", "null"]}
+      }
+    },
+    "D2": {
+      "type": "object",
+      "description": "Identity — Modules 02-identity-center, 03-iam-baseline",
+      "properties": {
+        "enable_scim_sync":            {"type": ["boolean", "string", "null"], "default": true},
+        "idp_metadata_url":            {"type": ["string", "null"]},
+        "session_duration_admin":      {"type": ["string", "null"], "default": "PT4H"},
+        "session_duration_developer":  {"type": ["string", "null"], "default": "PT8H"},
+        "session_duration_security_auditor": {"type": ["string", "null"], "default": "PT8H"},
+        "session_duration_billing":    {"type": ["string", "null"], "default": "PT8H"},
+        "platform_team_group_name":    {"type": ["string", "null"], "default": "lz-platform-admins"},
+        "password_min_length":         {"type": ["integer", "string", "null"], "default": 12},
+        "password_max_age_days":       {"type": ["integer", "string", "null"], "default": 90},
+        "password_reuse_prevention":   {"type": ["integer", "string", "null"], "default": 5},
+        "mfa_enforce_console":         {"type": ["boolean", "string", "null"], "default": true},
+        "max_session_duration_hours":  {"type": ["integer", "string", "null"], "default": 8},
+        "root_disable_console":        {"type": ["boolean", "string", "null"], "default": true},
+        "require_uppercase":           {"type": ["boolean", "string", "null"], "default": true},
+        "require_numbers":             {"type": ["boolean", "string", "null"], "default": true},
+        "require_special_chars":       {"type": ["boolean", "string", "null"], "default": true}
+      }
+    },
+    "D3": {
+      "type": "object",
+      "description": "Network — Modules 04-network-hub, 05-network-spoke, 06-public-services",
+      "required": ["er_availability_zones", "sandbox_vpc_cidr", "sandbox_subnet_cidr", "sandbox_availability_zone"],
+      "properties": {
+        "er_instance_name":           {"type": ["string", "null"], "default": "lz-hub-er"},
+        "er_asn":                     {"type": ["integer", "string", "null"], "default": 64512},
+        "er_availability_zones":      {"type": ["string", "array"]},
+        "enable_default_propagation": {"type": ["boolean", "string", "null"], "default": true},
+        "enable_cloud_firewall":      {"type": ["boolean", "string", "null"], "default": true},
+        "cfw_name":                   {"type": ["string", "null"], "default": "lz-hub-cfw"},
+        "cfw_protect_eips":           {"type": ["boolean", "string", "null"], "default": true},
+        "cfw_log_retention_days":     {"type": ["integer", "string", "null"], "default": 7},
+        "enable_nat_gateway":         {"type": ["boolean", "string", "null"], "default": true},
+        "nat_gateway_name":           {"type": ["string", "null"], "default": "lz-hub-nat"},
+        "nat_gateway_spec":           {"type": ["string", "null"], "default": "Small"},
+        "shared_bandwidth_name":      {"type": ["string", "null"], "default": "lz-shared-bandwidth"},
+        "shared_bandwidth_size_mbps": {"type": ["integer", "string", "null"], "default": 100},
+        "enable_vpn":                 {"type": ["boolean", "string", "null"], "default": false},
+        "vpn_gateway_name":           {"type": ["string", "null"]},
+        "vpn_bandwidth_mbps":         {"type": ["integer", "string", "null"], "default": 100},
+        "enable_direct_connect":      {"type": ["boolean", "string", "null"], "default": false},
+        "dc_connection_name":         {"type": ["string", "null"]},
+        "sandbox_vpc_name":           {"type": ["string", "null"], "default": "lz-sandbox-vpc"},
+        "sandbox_vpc_cidr":           {"type": "string"},
+        "sandbox_subnet_cidr":        {"type": "string"},
+        "sandbox_availability_zone":  {"type": "string"},
+        "enable_vpc_flow_logs":       {"type": ["boolean", "string", "null"], "default": true},
+        "enable_waf":                 {"type": ["boolean", "string", "null"], "default": true},
+        "waf_instance_count":         {"type": ["integer", "string", "null"], "default": 2},
+        "waf_specification":          {"type": ["string", "null"], "default": "instance.15"},
+        "enable_private_dns":         {"type": ["boolean", "string", "null"], "default": true},
+        "private_dns_domain":         {"type": ["string", "null"]}
+      }
+    },
+    "D4": {
+      "type": "object",
+      "description": "Shared Resources — Module 07-shared-resources",
+      "required": ["share_resources_to_account_ids"],
+      "properties": {
+        "kms_key_alias":                  {"type": ["string", "null"], "default": "lz-master-key"},
+        "kms_pending_deletion_days":      {"type": ["integer", "string", "null"], "default": 7},
+        "kms_key_rotation_enabled":       {"type": ["boolean", "string", "null"], "default": true},
+        "kms_key_rotation_interval_days": {"type": ["integer", "string", "null"], "default": 365},
+        "enable_shared_obs":              {"type": ["boolean", "string", "null"], "default": true},
+        "shared_obs_bucket_name":         {"type": ["string", "null"]},
+        "enable_sfs_turbo":               {"type": ["boolean", "string", "null"], "default": false},
+        "sfs_turbo_name":                 {"type": ["string", "null"]},
+        "sfs_turbo_size_gb":              {"type": ["integer", "string", "null"], "default": 500},
+        "share_resources_to_account_ids": {"type": ["string", "array"]},
+        "enable_shared_images":           {"type": ["boolean", "string", "null"], "default": false}
+      }
+    },
+    "D5": {
+      "type": "object",
+      "description": "Security Center — Module 08-security-center",
+      "properties": {
+        "enable_secmaster":          {"type": ["boolean", "string", "null"], "default": true},
+        "secmaster_workspace_name":  {"type": ["string", "null"], "default": "lz-security-workspace"},
+        "secmaster_alert_email":     {"type": ["string", "null"]},
+        "enable_hss":                {"type": ["boolean", "string", "null"], "default": true},
+        "hss_quota_count":           {"type": ["integer", "string", "null"], "default": 10},
+        "hss_version":               {"type": ["string", "null"], "default": "hss.version.enterprise"},
+        "csms_rotation_enabled":     {"type": ["boolean", "string", "null"], "default": true},
+        "csms_rotation_interval_days": {"type": ["integer", "string", "null"], "default": 30},
+        "enable_dbss":               {"type": ["boolean", "string", "null"], "default": false},
+        "dbss_instance_name":        {"type": ["string", "null"]},
+        "enable_dsc":                {"type": ["boolean", "string", "null"], "default": false}
+      }
+    },
+    "D6": {
+      "type": "object",
+      "description": "Audit & Logging — Modules 09-audit-logging, 10-compliance-config",
+      "required": ["obs_lifecycle_expiry_days"],
+      "properties": {
+        "cts_tracker_name":            {"type": ["string", "null"], "default": "lz-org-cts-tracker"},
+        "cts_log_retention_days":      {"type": ["integer", "string", "null"], "default": 90},
+        "cts_enable_notifications":    {"type": ["boolean", "string", "null"], "default": true},
+        "cts_notification_email":      {"type": ["string", "null"]},
+        "enable_lts":                  {"type": ["boolean", "string", "null"], "default": true},
+        "lts_group_name":              {"type": ["string", "null"], "default": "lz-audit-logs"},
+        "lts_retention_days":          {"type": ["integer", "string", "null"], "default": 30},
+        "enable_lts_obs_transfer":     {"type": ["boolean", "string", "null"], "default": true},
+        "obs_lifecycle_cold_days":     {"type": ["integer", "string", "null"], "default": 30},
+        "obs_lifecycle_expiry_days":   {"type": ["integer", "string"]},
+        "enable_config":               {"type": ["boolean", "string", "null"], "default": true},
+        "enable_org_aggregator":       {"type": ["boolean", "string", "null"], "default": true},
+        "conformance_pack_template":   {"type": ["string", "null"], "default": "Huawei-Cloud-Security-Configuration-Guide-Level-1"},
+        "enable_custom_config_rules":  {"type": ["boolean", "string", "null"], "default": false},
+        "compliance_notification_email": {"type": ["string", "null"]}
+      }
+    },
+    "D7": {
+      "type": "object",
+      "description": "Ops & Monitoring — Module 11-ops-monitoring",
+      "required": ["alarm_notification_email"],
+      "properties": {
+        "enable_cloud_eye":          {"type": ["boolean", "string", "null"], "default": true},
+        "alarm_notification_email":  {"type": "string", "format": "email"},
+        "alarm_sms_number":          {"type": ["string", "null"]},
+        "cloud_eye_alarm_level":     {"type": ["integer", "string", "null"], "default": 2},
+        "enable_resource_groups":    {"type": ["boolean", "string", "null"], "default": true},
+        "enable_aom":                {"type": ["boolean", "string", "null"], "default": true},
+        "aom_workspace_name":        {"type": ["string", "null"], "default": "lz-ops-workspace"},
+        "enable_smn_topics":         {"type": ["boolean", "string", "null"], "default": true},
+        "smn_topic_name_ops":        {"type": ["string", "null"], "default": "lz-ops-alerts"},
+        "smn_topic_name_security":   {"type": ["string", "null"], "default": "lz-security-alerts"},
+        "enable_functiongraph":      {"type": ["boolean", "string", "null"], "default": false},
+        "runbook_timeout_seconds":   {"type": ["integer", "string", "null"], "default": 300}
+      }
+    },
+    "D8": {
+      "type": "object",
+      "description": "Finance Governance — Module 12-finance-governance",
+      "required": ["budget_alert_email"],
+      "properties": {
+        "required_tags":              {"type": ["string", "null"], "default": "ManagedBy,Environment,CostCenter"},
+        "enforce_tag_policy":         {"type": ["boolean", "string", "null"], "default": false},
+        "budget_alert_email":         {"type": "string", "format": "email"},
+        "monthly_budget_usd":         {"type": ["integer", "number", "string", "null"], "default": 0},
+        "budget_alert_threshold_pct": {"type": ["integer", "number", "string", "null"], "default": 80},
+        "cost_allocation_tags":       {"type": ["string", "null"], "default": "Environment,Department,Project"}
+      }
+    },
+    "D9": {
+      "type": "object",
+      "description": "Data Perimeter — Module 13-data-perimeter",
+      "required": ["allowed_regions", "scp_enforcement_mode"],
+      "properties": {
+        "allowed_regions":               {"type": ["string", "array"]},
+        "enable_region_scp":             {"type": ["boolean", "string", "null"], "default": true},
+        "enable_root_protect_scp":       {"type": ["boolean", "string", "null"], "default": true},
+        "enable_require_mfa_scp":        {"type": ["boolean", "string", "null"], "default": true},
+        "enable_deny_internet_gw_scp":   {"type": ["boolean", "string", "null"], "default": false},
+        "scp_enforcement_mode":          {"type": ["boolean", "string"]},
+        "enable_service_restriction_scp":{"type": ["boolean", "string", "null"], "default": false},
+        "restricted_services":           {"type": ["string", "array", "null"]},
+        "enable_obs_vpcep":              {"type": ["boolean", "string", "null"], "default": false},
+        "enable_iam_vpcep":              {"type": ["boolean", "string", "null"], "default": false},
+        "enable_dns_vpcep":              {"type": ["boolean", "string", "null"], "default": false},
+        "obs_require_vpcep_only":        {"type": ["boolean", "string", "null"], "default": false}
+      }
+    }
+  }
+}
