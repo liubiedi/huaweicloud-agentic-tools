@@ -1,0 +1,198 @@
+# envs/01-foundation/terraform.tfvars
+#
+# Copy this file to terraform.tfvars and fill in real values.
+# Apply time: ~25-30 minutes (dominated by RGC bootstrap).
+#
+# ┌──────────────────────────────────────────────────────────────────────────┐
+# │  IMMUTABLE FIELDS — verify before applying. Changing any of these after  │
+# │  the LZ is ENABLED requires decommissioning RGC and re-bootstrapping.    │
+# │  Affects: audit_email, log_archive_account_name, audit_account_name,     │
+# │           core_ou_name, home_region.                                     │
+# └──────────────────────────────────────────────────────────────────────────┘
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# REQUIRED — no defaults
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Primary deployment region. Must be one of: cn-east-3, cn-north-4, ap-southeast-1.
+# This is enforced by a validation rule in variables.tf.
+home_region = "cn-east-3"
+
+# Huawei Cloud master-account AK/SK. Marked sensitive; will not appear in
+# `terraform output`. terraform.tfvars is gitignored — DO NOT commit.
+master_access_key = "REPLACE_ME"
+master_secret_key = "REPLACE_ME"
+
+# Email for the RGC-created Security/Audit account. IMMUTABLE after apply.
+# Pick a real, monitored inbox — Huawei sends account-verification emails here.
+audit_email = "lz-audit@yourcompany.com"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# RECOMMENDED — has a default but you usually want to set it
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Email used to seed the IAM Identity Center store. Required when
+# enable_identity_center = true (the default). Empty string disables IC.
+identity_store_email = "lz-identity@yourcompany.com"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# OPTIONAL — defaults shown; uncomment + edit to override
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ── Tagging / environment label ────────────────────────────────────────────
+
+# Applied to default_tags on every resource as Environment = <value>.
+# environment = "production"
+
+# Enterprise project name for cost allocation in Huawei Cost Center.
+# enterprise_project_name = "landing-zone"
+
+
+# ── Core OU + core account names (IMMUTABLE after apply) ───────────────────
+
+# Name of the CORE OU that RGC creates.
+# core_ou_name = "Core"
+
+# Display name for the RGC LOGGING account.
+# log_archive_account_name = "log-archive"
+
+# Display name for the RGC SECURITY/audit account.
+# audit_account_name = "audit"
+
+
+# ── Identity Center ────────────────────────────────────────────────────────
+
+# Enable IAM Identity Center as part of the bootstrap.
+# Setting to false skips IC entirely; identity_store_email is then ignored.
+# enable_identity_center = true
+
+
+# ── CTS organizational aggregation ─────────────────────────────────────────
+
+# Enables org-wide CTS aggregation (creates the org tracker server-side).
+# Setting to false means each member account only emits to its own tracker.
+# Recommended: true — required for the Logging-account audit pattern.
+# enable_org_aggregation = true
+
+
+# ── Region governance ──────────────────────────────────────────────────────
+
+# If true, RGC blocks ALL activity in regions not listed in the
+# region_configuration_list (currently just home_region + cn-north-4 for CTS).
+# Leave false for first deploy; flip on after testing — turning it on can
+# lock out admins doing remediation in non-governed regions.
+# deny_ungoverned_regions = false
+
+
+# ── RGC-managed log buckets ────────────────────────────────────────────────
+
+# Retention days for the RGC logging bucket (the audit log bucket).
+# CAF advisory: < 1095 days (3 years) triggers a WARN for regulated industries.
+# logging_retention_days = 365
+
+# Retention days for the RGC access-logging bucket.
+# 3650 = 10 years; suitable for most compliance regimes.
+# access_logging_retention_days = 3650
+
+# Multi-AZ storage for the RGC logging buckets.
+# IMMUTABLE on the bucket — Huawei recreates the bucket if you change this.
+# false saves cost; true is recommended for production.
+# logging_multi_az = false
+
+
+# ── Organizations trusted services ─────────────────────────────────────────
+
+# Trusted-service identifiers to register with Organizations. Values use the
+# Huawei "service.<NAME>" format (e.g. service.AOM), NOT AWS-style FQDNs.
+# Default is empty because the provider docs only show one example identifier
+# and shipping wrong ones would fail validation.
+#
+# Discover what's available in your account by adding (temporarily):
+#   data "huaweicloud_organizations_trusted_services" "all" {}
+#   output "available_trusted_services" {
+#     value = data.huaweicloud_organizations_trusted_services.all
+#   }
+# Then list the identifiers you want here.
+# trusted_services = [
+#   "service.AOM",
+#   # "service.<other names from the data source>",
+# ]
+
+
+# ── Additional OUs (beyond the Core OU RGC creates) ────────────────────────
+
+# Extra OUs to create at the org root (or under a parent_id you specify).
+# Leave empty for the bare-minimum org structure.
+# additional_ous = [
+#   { name = "Workloads" },
+#   { name = "Sandbox" },
+#   { name = "Infrastructure" },
+#   # { name = "Production", parent_id = "<workloads-ou-id>" },   # nest under Workloads
+# ]
+
+
+# ── Additional member accounts (beyond the LOGGING + SECURITY core ones) ───
+
+# Vended via huaweicloud_organizations_account. Each entry creates one account
+# with the listed email. parent_ou is informational only today — accounts are
+# created at the org root regardless (no _account_move step exists yet).
+# additional_member_accounts = [
+#   {
+#     name        = "myorg-network-ops"
+#     email       = "lz-netops@yourcompany.com"
+#     parent_ou   = "Infrastructure"
+#     description = "Hosts ER, CFW, NAT (module 04)"
+#   },
+#   {
+#     name        = "myorg-security-ops"
+#     email       = "lz-secops@yourcompany.com"
+#     parent_ou   = "Security"
+#     description = "Hosts SecMaster, HSS (module 08)"
+#   },
+#   {
+#     name        = "myorg-ops-monitoring"
+#     email       = "lz-ops@yourcompany.com"
+#     parent_ou   = "Infrastructure"
+#     description = "Hosts Cloud Eye, AOM, SMN (module 11)"
+#   },
+# ]
+
+
+# ── Default tag policy (built-in starter) ──────────────────────────────────
+
+# Attach a built-in tag policy at the org root that requires the listed tag
+# keys to be present on all taggable resources. Disabled by default so this
+# doesn't change behavior for existing wrappers. Flip true to enforce.
+# enable_default_tag_policy = false
+
+# Tag keys the built-in default tag policy enforces. Only used when
+# enable_default_tag_policy = true.
+# default_tag_policy_required_keys = ["ManagedBy", "CostCenter", "Environment"]
+
+
+# ── Custom tag policies (additional to the built-in default) ───────────────
+
+# Each entry is a huaweicloud_organizations_policy(type=tag_policy). Content
+# is the raw Huawei tag-policy JSON. See:
+#   https://support.huaweicloud.com/intl/en-us/usermanual-organizations/
+# tag_policies = [
+#   {
+#     name        = "lz-required-tags"
+#     description = "Enforce ManagedBy / CostCenter / Environment tags"
+#     content     = jsonencode({
+#       tags = {
+#         CostCenter = {
+#           tag_key   = { "@@assign" = "CostCenter" }
+#           tag_value = { "@@assign" = ["FIN-123", "FIN-456"] }
+#         }
+#         Environment = {
+#           tag_key   = { "@@assign" = "Environment" }
+#           tag_value = { "@@assign" = ["production", "staging", "development"] }
+#         }
+#       }
+#     })
+#   },
+# ]
