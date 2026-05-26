@@ -22,6 +22,7 @@ module "org_foundation" {
   home_region              = var.home_region
   core_ou_name             = var.core_ou_name
   log_archive_account_name = var.log_archive_account_name
+  log_archive_email        = var.log_archive_email
   audit_account_name       = var.audit_account_name
   audit_email              = var.audit_email
 
@@ -39,9 +40,13 @@ module "org_foundation" {
   additional_ous             = var.additional_ous
   additional_member_accounts = var.additional_member_accounts
 
+  enable_default_deny_root_scp       = var.enable_default_deny_root_scp
+  enable_default_region_boundary_scp = var.enable_default_region_boundary_scp
+
   enable_default_tag_policy        = var.enable_default_tag_policy
   default_tag_policy_required_keys = var.default_tag_policy_required_keys
   tag_policies                     = var.tag_policies
 
-  enterprise_project_name = var.enterprise_project_name
+  create_enterprise_project = var.create_enterprise_project
+  enterprise_project_name   = var.enterprise_project_name
 }

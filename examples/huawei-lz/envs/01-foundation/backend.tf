@@ -21,6 +21,10 @@ terraform {
     skip_credentials_validation = true
     skip_metadata_api_check     = true
 
+    # Do NOT set use_path_style = true on this OBS endpoint — OBS requires
+    # virtual-host-style addressing here and rejects path-style with
+    # "VirtualHostDomainRequired".
+
     # bucket, region, endpoints — supplied via backend.hcl
   }
 }
