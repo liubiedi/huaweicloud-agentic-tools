@@ -1,6 +1,6 @@
 output "organization_id" {
   value       = data.huaweicloud_organizations_organization.current.id
-  description = "Organizations org ID"
+  description = "Organizations org ID (created by RGC during landing-zone bootstrap)"
 }
 
 output "root_id" {
@@ -19,13 +19,13 @@ output "landing_zone_status" {
 }
 
 output "log_archive_account_id" {
-  value       = data.huaweicloud_rgc_core_account.log_archive.account_id
-  description = "Account ID of the RGC-created Log Archive account"
+  value       = huaweicloud_organizations_account.log_archive.id
+  description = "Account ID of the Log Archive account (pre-created via Organizations, enrolled by RGC)"
 }
 
 output "audit_account_id" {
-  value       = data.huaweicloud_rgc_core_account.audit.account_id
-  description = "Account ID of the RGC-created Security/Audit account"
+  value       = huaweicloud_organizations_account.audit.id
+  description = "Account ID of the Security/Audit account (pre-created via Organizations, enrolled by RGC)"
 }
 
 output "member_account_ids" {
@@ -39,18 +39,18 @@ output "additional_ou_ids" {
 }
 
 output "enterprise_project_id" {
-  value       = huaweicloud_enterprise_project.lz.id
-  description = "Landing zone enterprise project ID"
+  value       = var.create_enterprise_project ? huaweicloud_enterprise_project.lz[0].id : null
+  description = "Landing zone enterprise project ID (null if create_enterprise_project = false)"
 }
 
 output "scp_deny_root_id" {
-  value       = huaweicloud_organizations_policy.deny_root.id
-  description = "SCP ID for deny-root policy"
+  value       = var.enable_default_deny_root_scp ? huaweicloud_organizations_policy.deny_root[0].id : null
+  description = "SCP ID for deny-root policy (null if not enabled)"
 }
 
 output "scp_region_boundary_id" {
-  value       = huaweicloud_organizations_policy.region_boundary.id
-  description = "SCP ID for region boundary policy"
+  value       = var.enable_default_region_boundary_scp ? huaweicloud_organizations_policy.region_boundary[0].id : null
+  description = "SCP ID for region boundary policy (null if not enabled)"
 }
 
 output "default_tag_policy_id" {

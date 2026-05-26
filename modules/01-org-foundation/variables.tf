@@ -30,6 +30,15 @@ variable "audit_email" {
   }
 }
 
+variable "log_archive_email" {
+  type        = string
+  description = "Email for the Log Archive account. Required because we pre-create via huaweicloud_organizations_account (workaround for the provider bug on RGC's create-new path)."
+  validation {
+    condition     = can(regex("^[^@]+@[^@]+\\.[^@]+$", var.log_archive_email))
+    error_message = "Must be a valid email address."
+  }
+}
+
 variable "identity_store_email" {
   type        = string
   description = "Email used for the Identity Center store. Required when enable_identity_center = true."
@@ -109,9 +118,21 @@ variable "trusted_services" {
   default     = []
 }
 
+variable "enable_default_deny_root_scp" {
+  type        = bool
+  description = "Attach the built-in deny-root-actions SCP at the root. Default off — Huawei SCPs forbid `*` in action service names, so the policy enumerates a fixed list of high-risk services (iam, organizations, identitycenter, bss, billing). Review the list in main.tf before enabling."
+  default     = false
+}
+
+variable "enable_default_region_boundary_scp" {
+  type        = bool
+  description = "Attach the built-in region-boundary SCP at the root. Default off — same caveat as deny_root: must enumerate specific service names; the built-in list covers common infrastructure services and may not match your needs."
+  default     = false
+}
+
 variable "enable_default_tag_policy" {
   type        = bool
-  description = "Attach a built-in tag policy at the root that requires the keys in default_tag_policy_required_keys"
+  description = "Attach a built-in tag policy at the org root. REQUIRES tag_policy type to be enabled manually first (Huawei console > Organizations > Policies > Tag policies > Enable). Default off."
   default     = false
 }
 
@@ -131,8 +152,14 @@ variable "tag_policies" {
   default     = []
 }
 
+variable "create_enterprise_project" {
+  type        = bool
+  description = "Create a Huawei Enterprise Project for cost allocation. Requires EPS permissions on the master AK/SK; default off."
+  default     = false
+}
+
 variable "enterprise_project_name" {
   type        = string
-  description = "Enterprise project name for cost allocation"
+  description = "Enterprise project name (only used when create_enterprise_project = true)"
   default     = "landing-zone"
 }
