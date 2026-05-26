@@ -101,8 +101,14 @@ variable "additional_member_accounts" {
     parent_ou   = string
     description = optional(string, "")
   }))
-  description = "Member accounts to vend via Organizations"
+  description = "Member accounts to vend via Organizations. parent_ou must match an additional_ous name (or be empty/\"root\" for the org root)."
   default     = []
+}
+
+variable "enable_rgc_enrollment" {
+  type        = bool
+  description = "Register additional_ous into RGC governance. Registration auto-enrolls every account currently in the OU (Huawei behavior), so this single flag controls both. Each OU register can take several minutes. Default true."
+  default     = true
 }
 
 variable "trusted_services" {

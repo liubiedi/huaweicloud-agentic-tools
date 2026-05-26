@@ -33,6 +33,12 @@ output "member_account_ids" {
   description = "Map of account name to account ID for vended member accounts"
 }
 
+# Enrollment status is no longer tracked from Terraform — RGC auto-enrolls
+# accounts when their OU is registered, so there's no Terraform resource to
+# read state from. Check `Huawei console > RGC > Accounts` for current
+# enrollment state, or use `data.huaweicloud_rgc_accounts` for a programmatic
+# query.
+
 output "additional_ou_ids" {
   value       = { for k, v in huaweicloud_organizations_organizational_unit.additional : k => v.id }
   description = "Map of OU name to OU ID"

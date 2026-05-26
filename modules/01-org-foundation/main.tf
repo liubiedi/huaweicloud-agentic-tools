@@ -204,6 +204,19 @@ resource "huaweicloud_organizations_organizational_unit" "additional" {
 }
 
 # ── Member account vending ───────────────────────────────────────────────────
+# Place each account under the OU named in parent_ou. Empty parent_ou → root.
+# parent_id is updatable on huaweicloud_organizations_account, so moving an
+# existing account to a different OU is an in-place update (not a replace).
+
+locals {
+  # OU name → OU id for accounts that target an additional OU. The org root
+  # is included so accounts with parent_ou = "" or "root" land at the root.
+  member_account_parent_ids = merge(
+    { for k, v in huaweicloud_organizations_organizational_unit.additional : k => v.id },
+    { "" = data.huaweicloud_organizations_organization.current.root_id },
+    { "root" = data.huaweicloud_organizations_organization.current.root_id },
+  )
+}
 
 resource "huaweicloud_organizations_account" "members" {
   for_each = { for acct in var.additional_member_accounts : acct.name => acct }
@@ -211,11 +224,40 @@ resource "huaweicloud_organizations_account" "members" {
   name        = each.value.name
   email       = each.value.email
   description = each.value.description
+  parent_id   = local.member_account_parent_ids[each.value.parent_ou]
 
   tags = {
     ManagedBy = "terraform"
     Project   = "landing-zone"
   }
+}
+
+# ── RGC governance: register OUs → triggers auto-enrollment ────────────────
+# `huaweicloud_organizations_organizational_unit` creates a vanilla
+# Organizations OU. RGC doesn't auto-manage it; we register it explicitly.
+#
+# Important behavior: when RGC registers an OU, it AUTO-ENROLLS every account
+# already placed in that OU. We rely on this — no explicit `_account_enroll`
+# resource is needed (and adding one creates a conflict because RGC has
+# already enrolled the account by the time Terraform tries).
+#
+# Ordering: depends_on ensures all member accounts are created and placed in
+# their OUs BEFORE registration kicks off. Otherwise registration would fire
+# on an empty OU and the accounts wouldn't be auto-enrolled.
+#
+# Provider create timeout: 6 hours (max). Real duration is usually a few
+# minutes per OU plus time for each contained account's baseline setup.
+
+resource "huaweicloud_rgc_organizational_unit_register" "additional" {
+  for_each = var.enable_rgc_enrollment ? huaweicloud_organizations_organizational_unit.additional : {}
+
+  organizational_unit_id = each.value.id
+
+  # Ensure all member accounts are placed in their OUs before we register the
+  # OU into RGC. Registration scans the OU once and enrolls every account
+  # currently in it; accounts added later are also auto-enrolled, but we want
+  # the predictable case where Day-1 accounts are enrolled in this same apply.
+  depends_on = [huaweicloud_organizations_account.members]
 }
 
 # ── Default SCPs ─────────────────────────────────────────────────────────────
