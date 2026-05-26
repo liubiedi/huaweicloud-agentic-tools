@@ -56,6 +56,11 @@ variable "audit_email" {
   description = "Email for the Security/Audit account — IMMUTABLE after RGC bootstrap"
 }
 
+variable "log_archive_email" {
+  type        = string
+  description = "Email for the Log Archive account — IMMUTABLE after creation"
+}
+
 variable "enable_identity_center" {
   type        = bool
   description = "Enable IAM Identity Center as part of bootstrap"
@@ -124,6 +129,12 @@ variable "additional_member_accounts" {
   default = []
 }
 
+variable "enable_rgc_enrollment" {
+  type        = bool
+  description = "Register additional_ous into RGC governance. Registration auto-enrolls accounts already in the OU (Huawei behavior)."
+  default     = true
+}
+
 variable "tag_policies" {
   type = list(object({
     name        = string
@@ -133,9 +144,21 @@ variable "tag_policies" {
   default = []
 }
 
+variable "enable_default_deny_root_scp" {
+  type        = bool
+  description = "Attach the built-in deny-root-actions SCP. Review enumerated services in modules/01-org-foundation/main.tf before enabling."
+  default     = false
+}
+
+variable "enable_default_region_boundary_scp" {
+  type        = bool
+  description = "Attach the built-in region-boundary SCP. Review enumerated services before enabling."
+  default     = false
+}
+
 variable "enable_default_tag_policy" {
   type        = bool
-  description = "Attach a built-in tag policy at the root requiring standard tag keys"
+  description = "Attach a built-in tag policy at the root. REQUIRES tag_policy type to be enabled at the org root first (manually via Huawei console)."
   default     = false
 }
 
@@ -145,8 +168,14 @@ variable "default_tag_policy_required_keys" {
   default     = ["ManagedBy", "CostCenter", "Environment"]
 }
 
+variable "create_enterprise_project" {
+  type        = bool
+  description = "Create a Huawei Enterprise Project. Requires EPS permissions on the master AK/SK."
+  default     = false
+}
+
 variable "enterprise_project_name" {
   type        = string
-  description = "Enterprise project name for cost allocation"
+  description = "Enterprise project name (only used when create_enterprise_project = true)"
   default     = "landing-zone"
 }

@@ -24,9 +24,13 @@ home_region = "cn-east-3"
 master_access_key = "REPLACE_ME"
 master_secret_key = "REPLACE_ME"
 
-# Email for the RGC-created Security/Audit account. IMMUTABLE after apply.
+# Email for the Security/Audit account. IMMUTABLE after apply.
 # Pick a real, monitored inbox — Huawei sends account-verification emails here.
 audit_email = "lz-audit@yourcompany.com"
+
+# Email for the Log Archive account. IMMUTABLE after apply.
+# Must be different from audit_email (Huawei requires unique emails per account).
+log_archive_email = "lz-log-archive@yourcompany.com"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -106,20 +110,41 @@ identity_store_email = "lz-identity@yourcompany.com"
 # ── Organizations trusted services ─────────────────────────────────────────
 
 # Trusted-service identifiers to register with Organizations. Values use the
-# Huawei "service.<NAME>" format (e.g. service.AOM), NOT AWS-style FQDNs.
-# Default is empty because the provider docs only show one example identifier
-# and shipping wrong ones would fail validation.
+# Huawei "service.<NAME>" format, NOT AWS-style FQDNs.
 #
-# Discover what's available in your account by adding (temporarily):
-#   data "huaweicloud_organizations_trusted_services" "all" {}
-#   output "available_trusted_services" {
-#     value = data.huaweicloud_organizations_trusted_services.all
-#   }
-# Then list the identifiers you want here.
-# trusted_services = [
-#   "service.AOM",
-#   # "service.<other names from the data source>",
-# ]
+# Discover the authoritative list for your account by running:
+#   cd huawei-lz/queries/list-services && terraform init && terraform apply
+#   terraform output available_identifiers
+#
+# Full set available in ap-southeast-3 (16 services, last verified 2026-05-26):
+#   service.AccessAnalyzer
+#   service.AOM
+#   service.CBR
+#   service.CES
+#   service.CFW
+#   service.COC
+#   service.CTS
+#   service.DSC
+#   service.HSS
+#   service.IdentityCenter
+#   service.LTS
+#   service.RAM
+#   service.RFStackSetsOrgMember
+#   service.RGC
+#   service.RMSMultiAccountSetup
+#   service.SecMaster
+#
+# Recommended Day-1 set for an RGC+foundation deploy — covers what this env
+# enables directly (RGC, IC, CTS aggregation) plus the two services that
+# future envs need quickly (RAM for cross-account share, RMS for compliance).
+# Add the rest as you wrap their modules.
+trusted_services = [
+  "service.RGC",
+  "service.CTS",
+  "service.IdentityCenter",
+  "service.RAM",
+  "service.RMSMultiAccountSetup",
+]
 
 
 # ── Additional OUs (beyond the Core OU RGC creates) ────────────────────────
@@ -178,21 +203,25 @@ identity_store_email = "lz-identity@yourcompany.com"
 # Each entry is a huaweicloud_organizations_policy(type=tag_policy). Content
 # is the raw Huawei tag-policy JSON. See:
 #   https://support.huaweicloud.com/intl/en-us/usermanual-organizations/
+# tfvars cannot call functions, so policy `content` must be a literal JSON
+# string. Use a heredoc (<<-JSON ... JSON) for readability.
 # tag_policies = [
 #   {
 #     name        = "lz-required-tags"
 #     description = "Enforce ManagedBy / CostCenter / Environment tags"
-#     content     = jsonencode({
-#       tags = {
-#         CostCenter = {
-#           tag_key   = { "@@assign" = "CostCenter" }
-#           tag_value = { "@@assign" = ["FIN-123", "FIN-456"] }
-#         }
-#         Environment = {
-#           tag_key   = { "@@assign" = "Environment" }
-#           tag_value = { "@@assign" = ["production", "staging", "development"] }
+#     content     = <<-JSON
+#       {
+#         "tags": {
+#           "CostCenter": {
+#             "tag_key":   { "@@assign": "CostCenter" },
+#             "tag_value": { "@@assign": ["FIN-123", "FIN-456"] }
+#           },
+#           "Environment": {
+#             "tag_key":   { "@@assign": "Environment" },
+#             "tag_value": { "@@assign": ["production", "staging", "development"] }
+#           }
 #         }
 #       }
-#     })
+#     JSON
 #   },
 # ]

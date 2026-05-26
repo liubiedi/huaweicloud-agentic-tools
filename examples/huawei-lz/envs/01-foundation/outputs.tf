@@ -32,3 +32,4 @@ output "enterprise_project_id" {
   value       = module.org_foundation.enterprise_project_id
   description = "Landing zone enterprise project ID"
 }
+
