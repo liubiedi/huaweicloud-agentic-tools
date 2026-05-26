@@ -39,6 +39,7 @@ module "org_foundation" {
   trusted_services           = var.trusted_services
   additional_ous             = var.additional_ous
   additional_member_accounts = var.additional_member_accounts
+  enable_rgc_enrollment      = var.enable_rgc_enrollment
 
   enable_default_deny_root_scp       = var.enable_default_deny_root_scp
   enable_default_region_boundary_scp = var.enable_default_region_boundary_scp

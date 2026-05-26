@@ -129,6 +129,12 @@ variable "additional_member_accounts" {
   default = []
 }
 
+variable "enable_rgc_enrollment" {
+  type        = bool
+  description = "Register additional_ous into RGC governance. Registration auto-enrolls accounts already in the OU (Huawei behavior)."
+  default     = true
+}
+
 variable "tag_policies" {
   type = list(object({
     name        = string
