@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lz-agent-config
+  namespace: lz-agent
+data:
+  TF_STATE_REGION: "cn-east-3"
+  TF_STATE_BUCKET: "lz-tfstate-prod"
+  WEBHOOK_PORT: "8080"
+  LOG_LEVEL: "INFO"
+  GITHUB_REPOSITORY: "liubiedi/huaweicloud-agentic-tools"
+  # Set GMAIL_PUBSUB_SUBSCRIPTION to your GCP Pub/Sub subscription resource name:
+  # projects/<project-id>/subscriptions/<subscription-id>
+  GMAIL_PUBSUB_SUBSCRIPTION: ""
+  GMAIL_PUBSUB_TOPIC: ""
+  GMAIL_SENDER_EMAIL: "lz-agent@yourcompany.com"

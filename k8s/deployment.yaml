@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lz-agent
+  namespace: lz-agent
+  labels:
+    app: lz-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lz-agent
+  template:
+    metadata:
+      labels:
+        app: lz-agent
+    spec:
+      containers:
+        - name: lz-agent
+          # Replace with your SWR image URI after: docker build + docker push
+          image: swr.cn-east-3.myhuaweicloud.com/lz-agent/agent:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: lz-agent-config
+            - secretRef:
+                name: lz-agent-secrets
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: secrets-vol
+              mountPath: /secrets
+              readOnly: true
+      volumes:
+        - name: secrets-vol
+          secret:
+            secretName: lz-agent-secrets
+      restartPolicy: Always
+---
+# Secret template — populate with `kubectl create secret generic lz-agent-secrets`
+# kubectl create secret generic lz-agent-secrets \
+#   --namespace=lz-agent \
+#   --from-literal=HWC_ACCESS_KEY=<ak> \
+#   --from-literal=HWC_SECRET_KEY=<sk> \
+#   --from-literal=GITHUB_TOKEN=<pat> \
+#   --from-literal=ANTHROPIC_API_KEY=<key> \
+#   --from-file=GMAIL_SERVICE_ACCOUNT_JSON=sa.json
