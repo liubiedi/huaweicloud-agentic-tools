@@ -1,153 +1,31 @@
-# HuaweiCloud Agentic Tools — Landing Zone Terraform
+# HuaweiCloud Landing Zone - Terraform library
 
-Complete Terraform implementation of the Huawei Cloud Landing Zone reference architecture across all nine governance domains.
+The module library for the Excel-driven HuaweiCloud Landing Zone. The
+environments that compose these modules live in `../huawei-lz/`:
 
-**Provider:** `huaweicloud/huaweicloud ~> 1.87` | **Terraform:** `>= 1.6.3`
+- `../huawei-lz/envs-v2/` - canonical environment scaffold (new deployments)
+- `../huawei-lz/envs-frasers/` - the live Frasers deployment
+- `../huawei-lz/handover-docs/` - operator docs and day-2 cookbooks shipped
+  with the customer handover
 
----
+Provider pin: `huaweicloud/huaweicloud ~> 1.87`, Terraform `>= 1.6.3`.
 
-## Repository structure
+## Layout
 
-```
-.
-├── modules/                    # Reusable building blocks
-│   ├── 01-org-foundation/      # RGC, Organizations, SCPs, OUs, account vending
-│   ├── 02-identity-center/     # IAM Identity Center, SSO, permission sets
-│   ├── 03-iam-baseline/        # Per-account IAM hardening, agencies, policies
-│   ├── 04-network-hub/         # Enterprise Router, Cloud Firewall, NAT, VPN, RAM share
-│   ├── 05-network-spoke/       # Per-account VPC + ER attachment
-│   ├── 06-public-services/     # ELB, WAF, DNS, resolver endpoints
-│   ├── 07-shared-resources/    # KMS, OBS, SFS Turbo, IMS shared images
-│   ├── 08-security-center/     # SecMaster, HSS, DBSS, CSMS, KMS
-│   ├── 09-audit-logging/       # CTS org tracker, LTS groups/streams, OBS archive
-│   ├── 10-compliance-config/   # RMS recorder, aggregator, conformance packs, rules
-│   ├── 11-ops-monitoring/      # Cloud Eye, AOM, SMN, FunctionGraph runbooks
-│   ├── 12-finance-governance/  # Tag policies, cost RMS rules
-│   └── 13-data-perimeter/      # SCPs enforcement, VPC endpoints, OBS bucket policies
-│
-├── envs/                       # Environment compositions (deploy in order)
-│   ├── 00-bootstrap/           # State backend OBS bucket + CI agency
-│   ├── 01-foundation/          # Modules 01–03
-│   ├── 02-network/             # Modules 04–07
-│   ├── 03-security-audit/      # Modules 08–10
-│   ├── 04-ops-finance/         # Modules 11–12
-│   └── 05-perimeter/           # Module 13 (apply last)
-│
-├── providers/
-│   ├── multi-account.tf        # Aliased providers for all LZ accounts
-│   └── variables.tf            # Provider-level variables
-│
-├── policies/
-│   ├── opa/                    # OPA/Conftest guardrail policies
-│   │   ├── deny-public-obs.rego
-│   │   ├── require-tags.rego
-│   │   ├── require-scp-v5.rego
-│   │   └── region-allowlist.rego
-│   └── checkov/
-│       └── .checkov.yaml
-│
-├── docs/
-│   └── manually-managed.md     # Services with partial TF coverage
-│
-├── .github/workflows/lz-deploy.yml  # CI/CD pipeline
-├── .pre-commit-config.yaml
-└── terraform.tfvars.example
-```
-
----
-
-## Deployment order
-
-Apply environments strictly in sequence — each env reads outputs from the previous via `terraform_remote_state`.
-
-```
-00-bootstrap  →  01-foundation  →  02-network  →  03-security-audit  →  04-ops-finance  →  05-perimeter
-```
-
-> **Note:** `envs/05-perimeter` deploys SCPs and the OBS VPCEP-only policy. The `enforce_mode` variable defaults to `false`. Enable it only after verifying all spoke VPCs have OBS VPC endpoints deployed.
-
----
-
-## Quick start
-
-### 1. Bootstrap state backend
-
-```bash
-cd envs/00-bootstrap
-cp ../../terraform.tfvars.example terraform.tfvars
-# Fill in master_access_key, master_secret_key, tfstate_bucket_name
-terraform init
-terraform apply
-```
-
-### 2. Set credentials for CI
-
-Configure these GitHub Actions secrets and variables:
-
-| Secret | Value |
+| Path | What it is |
 |---|---|
-| `HWC_MASTER_ACCESS_KEY` | Master account AK |
-| `HWC_MASTER_SECRET_KEY` | Master account SK |
-| `INFRACOST_API_KEY` | Infracost API key (optional) |
+| `modules-v2/` | The 14 modules, named by domain (organization, network, cfw, ...). See its README for the catalogue. Only environments carry numbers, because only environments have a deploy order (00-bootstrap through 10-security). |
+| `policies/` | OPA/conftest checks run against plans (public OBS, mandatory tags, SCP v5 syntax, region allowlist). |
+| `docs/` | PRD and internal design notes. |
 
-| Variable | Example |
-|---|---|
-| `LZ_TFSTATE_BUCKET` | `my-lz-tfstate-prod` |
-| `LZ_HOME_REGION` | `cn-east-3` |
+Environment inputs (`terraform.tfvars.json`) and the per-account fan-out files
+are generated from the customer Excel workbook by `../lz_spec/build_envs.py`;
+`../lz_spec/verify_pipeline.py` is the regression harness. The generation
+pipeline is optional tooling: every environment plans and applies as plain
+Terraform without it.
 
-### 3. Configure tfvars for each env
+The original RGC-based v1 catalogue (numbered `modules/`, `envs/00-05`,
+`providers/multi-account.tf`) was retired on 2026-07-10; it lives in the
+workspace backup archives if ever needed for reference.
 
-```bash
-cd envs/01-foundation
-cp ../../terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars — see inline comments
-```
-
-### 4. Apply via CI or manually
-
-```bash
-# Manual apply (for initial bring-up)
-export AWS_ACCESS_KEY_ID=<master_ak>
-export AWS_SECRET_ACCESS_KEY=<master_sk>
-
-terraform init -backend-config="bucket=my-lz-tfstate-prod" \
-               -backend-config="region=cn-east-3"
-terraform plan -var-file=terraform.tfvars -out=tfplan
-terraform apply tfplan
-```
-
----
-
-## Key design decisions
-
-| Decision | Rationale |
-|---|---|
-| S3 backend on OBS | No native HWC TF backend; requires 5 `skip_*` flags in every `backend "s3"` block |
-| CTS org tracker hard-coded to `cn-north-4` | Global service constraint — do not make this a variable |
-| SCPs use `Version: "5.0"` | v5 syntax required by Huawei Cloud; OPA policy rejects v2012 |
-| `enforce_mode = false` on perimeter | Prevent lockout before VPC endpoints are in place |
-| CI concurrency groups per env | Prevents concurrent runs from corrupting shared state |
-| One state file per env composition | Limits blast radius of a corrupted state file |
-
----
-
-## Pre-commit hooks
-
-```bash
-pip install pre-commit
-pre-commit install
-```
-
-Hooks run: `terraform fmt`, `terraform validate`, `tflint`, `checkov`, `terraform-docs`.
-
----
-
-## Services with partial Terraform coverage
-
-See [docs/manually-managed.md](docs/manually-managed.md) for Anti-DDoS, DSC, APM, COC, and BSS Budgets.
-
----
-
-## License
-
-MIT License — see [LICENSE](LICENSE) for details.
+Working rules for agents and humans: see `CLAUDE.md`.
