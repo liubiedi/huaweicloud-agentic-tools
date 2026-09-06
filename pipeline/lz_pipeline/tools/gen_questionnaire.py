@@ -384,9 +384,9 @@ APPENDICES = [
     {
         "ref": "A", "name": "Appendix A - Accounts",
         "title": "Accounts & Environments (optional)",
-        "note": "One row per workload per environment. Fill what you know; leave the rest blank.",
+        "note": "One row per workload per environment. Fill what you know; leave the rest blank. The root email is each account's sign-in identity and must be globally unique - one address can never serve two accounts.",
         "columns": ["Application / Workload", "Environment", "Proposed account name",
-                    "Grouping / OU", "Owner email", "Notes"],
+                    "Grouping / OU", "Account root email", "Notes"],
         "example": ["Customer portal", "Production", "app-portal-prod", "Workloads/Prod",
                     "cloud-portal-prod@example.com", "Internet-facing"],
         "wiring": ["01_Foundation.WorkloadAccounts", "01_Foundation.OrganizationalUnits"],
