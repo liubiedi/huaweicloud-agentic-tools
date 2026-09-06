@@ -1272,6 +1272,9 @@ def cmd_intake(args):
     argv = [sys.executable, "-X", "utf8", "-m", "lz_pipeline.tools.dump_questionnaire",
             args.xlsx]
     if args.out:
+        # a jobtmp path that doesn't exist yet is the documented usage;
+        # failing on the missing parent cost every round-4 agent a retry
+        Path(args.out).resolve().parent.mkdir(parents=True, exist_ok=True)
         argv += ["-o", args.out]
     return subprocess.run(argv).returncode
 
@@ -1664,7 +1667,14 @@ def _set_append_row(sp, args, p, spec_path):
         if args.null:
             print("a list-single row cannot be null - give the value", file=sys.stderr)
             return 2
-        value = json.loads(args.json) if args.json is not None else args.value
+        if args.json is not None:
+            try:
+                value = json.loads(args.json)
+            except ValueError as e:
+                print(f"--json is not valid JSON: {e}", file=sys.stderr)
+                return 2
+        else:
+            value = args.value
     else:
         if args.json is None:
             print(f"row append takes the row as JSON: --field "
