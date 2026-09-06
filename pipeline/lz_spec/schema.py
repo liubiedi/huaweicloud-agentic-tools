@@ -1506,7 +1506,7 @@ M6_AUDIT = Sheet(
                 KV("cts_log_stream_name",     "string", "", "{account-name}-sg-prd-ldz-cts-ls",   "CTS LTS log stream name. Supports {account-name}."),
                 KV("kms_pending_days",           "int", 7,    30,    "KMS pending-deletion window. Production environments should use 30 days."),
                 KV("audit_bucket_force_destroy","bool", False, False, "Use with caution. TRUE allows Terraform to delete a non-empty audit bucket when the bucket name changes. This deletes stored audit logs and should remain FALSE unless a deliberate recreation is required."),
-                KV("cts_no_transfer_accounts","string", "", "lz-app,lz-infra", "Comma-separated account names from 01_Foundation that receive a CTS tracker without OBS or LTS transfer. Use this only when local CTS visibility is required in addition to the central organization tracker. Exclude cts_admin_account."),
+                KV("cts_no_transfer_accounts","string", "", "lz-app,lz-infra", "Comma-separated account names from 01_Foundation that receive a CTS tracker without OBS or LTS transfer. Use this only when local CTS visibility is required in addition to the central organization tracker. Exclude cts_admin_account. Leave blank when no account needs this."),
             ],
         ),
         Table(

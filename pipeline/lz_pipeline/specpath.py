@@ -63,7 +63,10 @@ def parse(path: str) -> dict:
             f"{raw!r} names more than one thing - give one path per "
             f"--field (repeat the flag for several)")
 
-    parts = raw.split(".")
+    # Split on dots OUTSIDE brackets only: row names may contain literal
+    # dots (every 01_Foundation.TrustedServices row is named service.<X>),
+    # and a naive split shredded them (round-4 finding).
+    parts = re.split(r"\.(?![^\[]*\])", raw)
     if len(parts) < 2:
         raise PathError(f"{raw!r} is not a Sheet.Table path")
 
@@ -135,8 +138,13 @@ def field_type(path: str) -> str:
 
 def required_scalars() -> list:
     """Scalar paths the schema gives no default for - a value must be
-    supplied or the gap declared. An empty default is the schema's way of
-    saying "no sensible default exists" (see kms_audit_alias)."""
+    supplied or the gap declared.
+
+    An empty default usually means "no sensible default exists" (see
+    kms_audit_alias) - EXCEPT where the field's own description says
+    "Leave blank to ...": there, blank IS the documented final answer, and
+    treating it as unsupplied forced agents to register gaps for values
+    that were never unknown (round-4 finding, 9+ runs)."""
     out = []
     for sh in wb_schema.SHEETS:
         if sh.name in wb_schema.INFO_SHEETS or sh.name == "_meta":
@@ -148,6 +156,10 @@ def required_scalars() -> list:
                 name = getattr(r, "name", r)
                 if getattr(r, "type", "string") != "string":
                     continue
-                if getattr(r, "default", "") == "":
-                    out.append(f"{sh.name}.{t.name}.{name}")
+                if getattr(r, "default", "") != "":
+                    continue
+                desc = getattr(r, "description", "") or ""
+                if re.search(r"leave (?:this )?blank", desc, re.I):
+                    continue
+                out.append(f"{sh.name}.{t.name}.{name}")
     return out

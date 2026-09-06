@@ -185,9 +185,12 @@ RUN_EVENT
 actually has: `["bash","-c",...]` on POSIX, `["powershell","-NoProfile",
 "-Command",...]` (or `["cmd","/c",...]`) on Windows, or invoke the program
 directly with no shell at all. Round 3's example showed only the bash form
-and every agent on the Windows host lost time discovering this. The logger
-itself must write and mirror as UTF-8 regardless of console codepage -
-launcher's responsibility to verify before the first run.
+and every agent on the Windows host lost time discovering this. On Windows,
+a heredoc whose JSON contains backslash paths can die with `invalid
+\escape` - write the event to a file and pipe it instead:
+`python <root>/runlog.py RUN_DIR < event.json` (round-4 finding, 5 runs).
+The logger itself must write and mirror as UTF-8 regardless of console
+codepage - launcher's responsibility to verify before the first run.
 
 Use kind=note, label=Progress or Final response, text=<your visible message>
 for anything you would have said to the user. Record decisions and evidence,

@@ -1291,25 +1291,33 @@ def _decision_set_sha256(items):
                           .encode("utf-8")).hexdigest()
 
 
-def _neutral(v):
-    """Schema-shaped skeleton: keep structure, unset every value.
+def _skeleton():
+    """Schema-shaped neutral sheets: every table [], every scalar field null.
 
-    Tables empty, scalars null. `null` - not "" - is how this pipeline
-    spells "nobody has supplied this yet": it is legal in every typed slot,
-    so the skeleton no longer fails its own type check with 37 `expected
-    int, got str ('')` errors that say nothing about the missing facts.
-    What the draft SHOULD report is unsupplied values, and LZR-034 does
-    that against the decisions file.
+    `null` - not "" - is how this pipeline spells "nobody has supplied this
+    yet"; LZR-034 reports unsupplied values against the decisions file, and
+    a draft built from this fails validation until answers are interpreted
+    in - which is the point: nothing deployable exists that wasn't decided.
 
-    A draft built from this still fails validation until answers are
-    interpreted in - which is the point: nothing deployable exists that
-    wasn't decided by someone.
+    Built from lz_spec.schema, NOT the example fixture: neutralizing the
+    fixture meant any sheet or field the fixture predated (11_SGACL, half
+    of CloudFirewall) was silently absent from every fresh draft, and the
+    fixture's old schema_version got stamped onto new work (round-4
+    benchmark, 12+ runs).
     """
-    if isinstance(v, dict):
-        return {k: _neutral(x) for k, x in v.items()}
-    if isinstance(v, list):
-        return []
-    return None
+    from lz_spec import schema as wb
+    sheets = {}
+    for sh in wb.SHEETS:
+        if sh.name in wb.INFO_SHEETS or sh.name == "_meta":
+            continue
+        tables = {}
+        for t in sh.tables:
+            if t.kind == "scalar":
+                tables[t.name] = {getattr(r, "name", r): None for r in (t.rows or [])}
+            else:
+                tables[t.name] = []
+        sheets[sh.name] = tables
+    return sheets
 
 
 def _specpath():
@@ -1372,10 +1380,15 @@ def cmd_assess(args):
     if draft.exists() and not args.force:
         print(f"refusing to overwrite {draft} (use --force)")
         return 1
-    fixture = Path(__file__).resolve().parent / "fixtures" / "example.spec.json"
-    spec = json.loads(fixture.read_text(encoding="utf-8"))
-    spec["sheets"] = _neutral(spec["sheets"])
-    spec["customer"] = slug
+    sp = _specpath()
+    if sp is None:
+        print("'assess' needs the build pipeline (the schema shapes the neutral "
+              "draft), which this runtime-only installation does not include.",
+              file=sys.stderr)
+        return 2
+    from lz_spec import schema as wb_schema
+    spec = {"format": "lz-spec-ir/1", "schema_version": wb_schema.SCHEMA_VERSION,
+            "customer": slug, "sheets": _skeleton()}
     meta = dump.get("meta", {})
     spec["source"] = (f"assessment questionnaire v{meta.get('questionnaire_version', '?')} "
                       f"({dump.get('source_file', '?')}) - NEUTRAL DRAFT: every value "
@@ -1587,6 +1600,48 @@ def _coerce(raw: str, typ: str):
     return raw
 
 
+def _find_row(rows, key):
+    """A row by its name-ish key, else (for keyless tables and dotted names)
+    by 0-based index. Never invents one."""
+    row = next((r for r in rows
+                if any(str(r.get(k)) == key for k in _ROW_KEYS)), None)
+    if row is None and key.isdigit() and int(key) < len(rows):
+        row = rows[int(key)]
+    return row
+
+
+def _set_delete_row(args, p, spec_path):
+    """`set --field 'Sheet.Table[row]' --null`: remove one row.
+
+    The one row-level operation `set` has, added after a round-4 run turned
+    a rename in a keyless table (SGRules) into a permanent orphan - without
+    it, the only recovery from a bad append is `assess --force`."""
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    sheet = spec.setdefault("sheets", {}).setdefault(p["sheet"], {})
+    rows = sheet.get(p["table"])
+    if not isinstance(rows, list):
+        rows = []
+    target = None
+    if p["row"].isdigit() and int(p["row"]) < len(rows):
+        target = rows[int(p["row"])]
+    else:
+        target = next((r for r in rows if isinstance(r, dict) and
+                       any(str(r.get(k)) == p["row"] for k in _ROW_KEYS)), None)
+        if target is None and p["row"] in rows:      # list-single tables
+            target = p["row"]
+    if target is None:
+        print(f"{p['sheet']}.{p['table']} has no row {p['row']!r} to delete "
+              f"({len(rows)} row(s); name or 0-based index)", file=sys.stderr)
+        return 2
+    rows.remove(target)
+    sheet[p["table"]] = rows
+    spec_path.write_text(json.dumps(spec, indent=2, ensure_ascii=False) + "\n",
+                         encoding="utf-8", newline="\n")
+    print(f"deleted {p['sheet']}.{p['table']}[{p['row']}] "
+          f"({len(rows)} row(s) remain)")
+    return 0
+
+
 def _set_append_row(sp, args, p, spec_path):
     """`set --field Sheet.Table[+] --json '{...}'`: append one whole row.
 
@@ -1671,10 +1726,21 @@ def cmd_set(args):
         return 2
     if p["row"] == "+":
         return _set_append_row(sp, args, p, spec_path)
+    if p["row"] and not p["column"] and not p["field"]:
+        # a whole row: --null deletes it (the only row-level operation).
+        # Rows in keyless tables are addressable by 0-based index, so a
+        # mid-interpretation mistake is recoverable without assess --force.
+        if args.null:
+            return _set_delete_row(args, p, spec_path)
+        print(f"--field {args.field!r} names a whole row - give "
+              f"{p['sheet']}.{p['table']}[{p['row']}].Column to write one "
+              "value, or pass --null to DELETE the row", file=sys.stderr)
+        return 2
     if not p["field"] and not p["column"]:
         print(f"--field {args.field!r} names a table, not a value - give "
               "Sheet.Table.field, Sheet.Table[row].Column, or Sheet.Table[+] "
-              "with --json to append a row", file=sys.stderr)
+              "with --json to append a row (list-single tables: one "
+              "--value/--json element per [+] call)", file=sys.stderr)
         return 2
     if p["column"] and not p["row"]:
         print(f"--field {args.field!r} names a column but no row - give "
@@ -1703,12 +1769,12 @@ def cmd_set(args):
         sheet.setdefault(p["table"], {})[p["field"]] = value
     else:
         rows = [r for r in (sheet.get(p["table"]) or []) if isinstance(r, dict)]
-        row = next((r for r in rows
-                    if any(str(r.get(k)) == p["row"] for k in _ROW_KEYS)), None)
+        row = _find_row(rows, p["row"])
         if row is None:
             names = [str(next((r[k] for k in _ROW_KEYS if r.get(k)), "?")) for r in rows]
             print(f"{p['sheet']}.{p['table']} has no row {p['row']!r} "
-                  f"(rows: {', '.join(names) or 'none'}) - add it first with "
+                  f"(rows: {', '.join(names) or 'none'}; a 0-based index works "
+                  f"too) - add it first with "
                   f"--field '{p['sheet']}.{p['table']}[+]' --json '{{...}}'; "
                   "addressing never invents a row", file=sys.stderr)
             return 2
@@ -1872,13 +1938,18 @@ def main(argv=None):
     p = sub.add_parser("set", help="write one value into the spec at a schema path")
     p.add_argument("--spec", "--ir", dest="spec", required=True)
     p.add_argument("--field", required=True,
-                   help="Sheet.Table.field, Sheet.Table[row].Column, or "
-                        "Sheet.Table[+] with --json to append a row")
+                   help="Sheet.Table.field, Sheet.Table[row].Column (row = name "
+                        "or 0-based index), Sheet.Table[+] to append a row "
+                        "(object tables: --json '{...}'; list-single tables: "
+                        "one --value/--json element per call - whole-array "
+                        "writes are refused), or Sheet.Table[row] with --null "
+                        "to delete the row")
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--value", help="the value, coerced to the field's declared type")
     g.add_argument("--json", help="a JSON literal, for lists and exact types")
     g.add_argument("--null", action="store_true",
-                   help="declare the value not known yet (null, not empty string)")
+                   help="declare the value not known yet (null, not empty "
+                        "string); on a Sheet.Table[row] path: delete the row")
     p.set_defaults(fn=cmd_set)
     p = sub.add_parser("verify", help="post-apply gate: every env clean or known-benign")
     p.add_argument("--envs-dir", required=True)

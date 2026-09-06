@@ -140,6 +140,46 @@ def test_example_rows_pass_the_setter_contract():
     assert not bad, sorted(set(bad))
 
 
+# ── round-4 fleet findings ─────────────────────────────────────────────────
+
+def test_neutral_skeleton_covers_the_whole_schema():
+    """assess's draft used to be a neutralized copy of the example fixture,
+    so sheets/fields the fixture predated (11_SGACL, half of CloudFirewall)
+    were silently absent from every fresh draft."""
+    from lz_pipeline.lzctl import _skeleton
+    from lz_spec import schema as wb
+    sk = _skeleton()
+    assert "11_SGACL" in sk and sk["11_SGACL"]["SecurityGroups"] == []
+    cfw = sk["05_Network"]["CloudFirewall"]
+    declared = {getattr(r, "name", r) for t in
+                [x for s in wb.SHEETS if s.name == "05_Network" for x in s.tables
+                 if x.name == "CloudFirewall"] for r in (t.rows or [])}
+    assert set(cfw) == declared and all(v is None for v in cfw.values())
+
+
+def test_leave_blank_fields_are_not_required():
+    """A blank default whose description says "Leave blank to ..." is a
+    documented answer, not a missing value - LZR-034 must not demand a gap
+    for it. Fields with no sanctioned blank stay required."""
+    from lz_pipeline.specpath import required_scalars
+    req = set(required_scalars())
+    assert "01_Foundation.Settings.identity_center_alias" not in req
+    assert "04_Perimeter.ConfigSetup.recorder_smn_topic_urn" not in req
+    assert "06_Observability.AuditSettings.cts_no_transfer_accounts" not in req
+    assert "06_Observability.AuditSettings.kms_audit_alias" in req
+
+
+def test_row_names_may_contain_dots():
+    """Every 01_Foundation.TrustedServices row is named service.<X>; the
+    path splitter must not shred the bracket content."""
+    from lz_pipeline import specpath
+    p = specpath.parse("01_Foundation.TrustedServices[service.LTS].DelegatedAdmin")
+    assert p["row"] == "service.LTS" and p["column"] == "DelegatedAdmin"
+    assert specpath.normalize(
+        "01_Foundation.TrustedServices[service.LTS].DelegatedAdmin"
+    ) == "01_Foundation.TrustedServices.DelegatedAdmin"
+
+
 # ── questionnaire dumps never ship (run 29's PSK survived in the dump) ─────
 
 def test_export_never_ships_a_questionnaire_dump():

@@ -140,6 +140,12 @@ entered by them in `lz-app` (step 6), not typed by you into JSON.
    decision names it (LZR-034), and an answered-but-valueless target covered
    by a registered gap (LZR-035), are declared unknowns, not errors — the
    OPEN items still block `build`. An error that survives is real work left.
+   **Deliberate exception: structural-integrity errors are gap-proof.**
+   Account-email completeness, minimum row counts, uniqueness, and
+   referential integrity always need a real value or a removed row — a gap
+   never clears them, by design. A spec whose only surviving errors are
+   structural (e.g. no mailbox pattern was ever agreed) is an honest
+   stopping point: report it as blocked, don't fight the validator.
 
 6. **Hand the draft to a human in the app — the review and gap-entry gate.**
    The customer reviews the draft and fills its gaps in the UI, never by

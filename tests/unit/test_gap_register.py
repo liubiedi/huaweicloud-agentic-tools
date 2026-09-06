@@ -302,6 +302,50 @@ def test_set_appends_to_a_list_single_table(draft):
     assert sheets_of(draft)["05_Network"]["ERAvailabilityZones"][-1] == "ap-southeast-1c"
 
 
+def test_row_addressing_by_index_and_row_delete(draft):
+    """Round-4 findings: keyless-table mistakes were unrecoverable (no
+    delete verb), and rows whose names contain dots were unaddressable.
+    Index addressing + `--null` row delete close both."""
+    for name in ("nat-a", "nat-b"):
+        r = run("lz_pipeline.lzctl", "set", "--spec", str(draft),
+                "--field", "05_Network.NATGateways[+]",
+                "--json", f'{{"Name": "{name}"}}')
+        assert r.returncode == 0, r.stdout + r.stderr
+
+    # write by 0-based index
+    r = run("lz_pipeline.lzctl", "set", "--spec", str(draft),
+            "--field", "05_Network.NATGateways[1].Specification",
+            "--value", "small")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert sheets_of(draft)["05_Network"]["NATGateways"][1]["Specification"] == "small"
+
+    # delete by name, then confirm the survivor; delete by index also works
+    r = run("lz_pipeline.lzctl", "set", "--spec", str(draft),
+            "--field", "05_Network.NATGateways[nat-a]", "--null")
+    assert r.returncode == 0, r.stdout + r.stderr
+    rows = sheets_of(draft)["05_Network"]["NATGateways"]
+    assert [x["Name"] for x in rows] == ["nat-b"]
+    r = run("lz_pipeline.lzctl", "set", "--spec", str(draft),
+            "--field", "05_Network.NATGateways[0]", "--null")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert sheets_of(draft)["05_Network"]["NATGateways"] == []
+
+    # a missing row refuses cleanly
+    r = run("lz_pipeline.lzctl", "set", "--spec", str(draft),
+            "--field", "05_Network.NATGateways[ghost]", "--null")
+    assert r.returncode == 2 and "to delete" in r.stderr
+
+
+def test_dotted_row_name_is_addressable(draft):
+    r = run("lz_pipeline.lzctl", "set", "--spec", str(draft),
+            "--field", "01_Foundation.TrustedServices[service.LTS].DelegatedAdmin",
+            "--value", "acme-logarchive")
+    assert r.returncode == 0, r.stdout + r.stderr
+    rows = sheets_of(draft)["01_Foundation"]["TrustedServices"]
+    lts = next(x for x in rows if x.get("Name") == "service.LTS")
+    assert lts["DelegatedAdmin"] == "acme-logarchive"
+
+
 @pytest.mark.parametrize("args,msg", [
     (("--field", "05_Network.NATGateways[+]", "--json", '{"Nope": 1}'),
      "no column 'Nope'"),

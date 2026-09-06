@@ -152,7 +152,7 @@ _q("deep", "Identity & Access",
    "How detailed do access permissions need to be? Are standard admin, power-user, and read-only roles enough, or do some teams need access limited to specific applications or resources?",
    "Also share any preferred session duration or sign-in portal naming requirements.",
    ["03_Identity.PermissionSets", "03_Identity.AppPermissionSets",
-    "03_Identity.AccountAssignments", "03_Identity.Settings.identity_center_alias"],
+    "03_Identity.AccountAssignments", "01_Foundation.Settings.identity_center_alias"],
    "Three standard tiers per account; no app-scoped sets.")
 
 # ── Network ─────────────────────────────────────────────────────────────────
@@ -375,7 +375,7 @@ _q("deep", "Finance & Cost Management",
    "Platform costs absorbed centrally.")
 _q("deep", "Finance & Cost Management",
    "Do you have an existing Huawei Cloud commercial or billing arrangement?",
-   "Examples include an enterprise agreement, partner or reseller arrangement, or committed spend. Also include any budget thresholds that should trigger finance alerts.",
+   "Examples include an enterprise agreement, partner or reseller arrangement, or committed spend. Also include any budget thresholds that should trigger finance alerts. The commercial arrangement itself is engagement context (it stays with the delivery team, not the spec); only the alert recipients and thresholds land in the specification.",
    ["06_Observability.Subscribers"],
    example="Partner/reseller agreement via <partner>; alert finance@acme.com at 80% of monthly budget.")
 

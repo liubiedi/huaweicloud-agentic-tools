@@ -1242,7 +1242,7 @@
                 },
                 "cts_no_transfer_accounts": {
                   "type": "string",
-                  "description": "Comma-separated account names from 01_Foundation that receive a CTS tracker without OBS or LTS transfer. Use this only when local CTS visibility is required in addition to the central organization tracker. Exclude cts_admin_account."
+                  "description": "Comma-separated account names from 01_Foundation that receive a CTS tracker without OBS or LTS transfer. Use this only when local CTS visibility is required in addition to the central organization tracker. Exclude cts_admin_account. Leave blank when no account needs this."
                 }
               },
               "additionalProperties": true
