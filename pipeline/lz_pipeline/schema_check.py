@@ -78,7 +78,10 @@ def check(ir: dict) -> tuple:
     for sname, sdef in known.items():
         sdata = sheets.get(sname)
         if sdata is None:
-            if sname not in OPTIONAL_SHEETS:
+            # _meta is bookkeeping, not a user sheet: assess's schema-shaped
+            # skeleton rightly omits it, and warning about it put one
+            # permanent cosmetic warning on every fresh draft (round 5).
+            if sname not in OPTIONAL_SHEETS and sname != "_meta":
                 warnings.append(f"sheet {sname!r} missing (treated as empty)")
             continue
         if not isinstance(sdata, dict):

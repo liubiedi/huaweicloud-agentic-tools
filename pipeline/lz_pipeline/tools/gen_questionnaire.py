@@ -152,7 +152,7 @@ _q("deep", "Identity & Access",
    "How detailed do access permissions need to be? Are standard admin, power-user, and read-only roles enough, or do some teams need access limited to specific applications or resources?",
    "Also share any preferred session duration or sign-in portal naming requirements.",
    ["03_Identity.PermissionSets", "03_Identity.AppPermissionSets",
-    "03_Identity.AccountAssignments", "01_Foundation.Settings.identity_center_alias"],
+    "03_Identity.AccountAssignments"],
    "Three standard tiers per account; no app-scoped sets.")
 
 # ── Network ─────────────────────────────────────────────────────────────────
