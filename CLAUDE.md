@@ -13,7 +13,7 @@ Build target: **`modules-v2/`** (14 modules, named by domain - no numbers; only 
 | `network` | ER hub + spoke VPCs, CFW, NAT, ELB, EIP, RAM share; per-VPC flow logs (`enable_vpc_flow_logs`: own `<vpc>-flowlog` LTS group/stream each, feeds LogConverge); spokes without a SpokeERAttachments row deploy UNATTACHED (`spoke_er_attach_enabled=false`, isolated) | `05-network` (hub+spokes, one apply) |
 | `perimeter` | SCPs (8 guardrails in `var.scps`), per-account TMS predefined-tag dict (`tms-tags.tf`), **and Config/RMS org setup** (`config.tf` recorder + ORGANIZATION aggregator; `conformance.tf` org packs, template_key auto-resolved; all gated by `enable_config`) | `04-perimeter` |
 | `security` | SecMaster workspace | `07-security` |
-| `compliance-audit` | CTS tracker, OBS audit/access/archive buckets, KMS, LTS | `06-observability` |
+| `compliance-audit` | CTS org tracker (trail lands in the CTS-created LTS pair `CTS/system-trace`, exposed as `cts_log_group_id`/`cts_log_stream_id`) + key-event notifications (SMN), OBS audit/access/archive buckets, KMS | `06-observability` |
 | `cts-tracker` | Minimal CTS tracker, no OBS/LTS transfer (per-account fan-out for `AuditSettings.cts_no_transfer_accounts`) | `06-observability` |
 | `ops-monitoring` | SMN, CES alarms | `06-observability` |
 | `financial` | Cost-center enterprise projects | `02-finance` |

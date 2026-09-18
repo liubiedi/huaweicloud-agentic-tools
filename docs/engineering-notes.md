@@ -61,6 +61,51 @@ comment in a shipped tree.
 - **EPS authority grant is async**: an EP created seconds after the grant fails with EPS.0004 "Permission error" (hit live 2026-07 on a fresh account) - hence the one-time sleep. Deleting the grant resource does NOT revoke the authority.
 - **poc EPs are permanent**: enterprise projects of type "poc" cannot be disabled (EPS.0614) - destroy fails forever. Two orphaned uat-ep-ss EPs live outside state for exactly this reason. Name poc EPs right the first time.
 
+## compliance-audit module
+
+### cts.tf
+
+- `huaweicloud_cts_notification.this` (2026-09-18): trace names MUST be the
+  platform's own operation names. CTS accepts any string silently - a
+  misspelled or guessed name creates a notification that never fires and
+  never errors. Take names from the `huaweicloud_cts_operations` data source
+  (per service/resource), not from memory or blog posts. Frasers KMS/VPC names
+  were taken from that source.
+- Notification `name` accepts letters, digits, underscore and Chinese only.
+  A hyphen fails at create with `cts.0007 "Notification name verify failed"`
+  (hit live 2026-09-18 with `kms-key-lifecycle`); LZR-037 now rejects it
+  in the spec.
+- VPC publishes the SAME operation under several resource types by API
+  generation (`routetable`/`routetables`, `security_group`/`security-groups`,
+  `security_group_rule`/`security-group-rules`); the console and Terraform hit
+  different ones. A notification must list every variant it wants caught -
+  one operations block per resource type, same notification.
+- Notifications are account-level (no tracker argument in the API/provider),
+  created in the CTS-admin account next to the org tracker. Canary 2026-09-18
+  (throwaway SG create/delete in HW-FPCS-Infra): the member traces DO reach the
+  admin account - they appear in Sec's CTS-owned LTS stream `CTS/system-trace`
+  within a minute - but the admin's `/v3/traces` API lists only local traces.
+  CONFIRMED org-wide 2026-09-18: the subscribers received the email for the
+  Infra canary, so a notification in the CTS-admin account fires on member
+  account traces. No per-account fan-out needed.
+
+### lts.tf
+
+- `huaweicloud_lts_group.cts` / `lts_stream.cts` are NOT where CTS writes.
+  `huaweicloud_cts_tracker` takes only `lts_enabled = true`; the service creates
+  its own group `CTS` and stream `system-trace` (the tracker's `log_group_name`
+  attribute is computed, never an input). Found 2026-09-18: the module's audit
+  group/stream in frasers had 0 logs in 24 h while `CTS/system-trace` had 113 in
+  1 h across four accounts. Consequence: the LogConverge "Org CTS audit events"
+  row converges an empty stream and the real org audit log is neither converged
+  nor archived. FIXED 2026-09-18: `lts.tf` deleted, outputs now read
+  `huaweicloud_cts_tracker.org.group_id` / `.stream_id` (the pair CTS created),
+  the `cts_log_group_name` / `cts_log_stream_name` / `lts_hot_retention_days`
+  inputs removed, and the LogConverge derivation targets `CTS/system-trace`.
+- `smn_topic` is the CTS-admin account's ops-monitoring topic; the emitter
+  wires `module.ops_<admin>.smn_topic_urn`, so the admin must be in
+  `OpsSettings.accounts` (LZR-037 enforces).
+
 ## log-aggregation module
 - **LTS.2101 on concurrent encrypted transfers**: the first encrypted transfer triggers LTS's async self-authorization (KMS grant to op_svc_lts); concurrent creates fail LTS.2101 "kms authorisation to op_svc_lts error" (hit live 2026-07). The waves are serialized via depends_on; LTS.2101 is retryable - a second apply clears stragglers.
 

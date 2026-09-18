@@ -14,11 +14,16 @@ output "cts_tracker_id" {
 }
 
 output "cts_log_group_id" {
-  description = "CTS LTS log group ID."
-  value       = huaweicloud_lts_group.cts.id
+  description = "ID of the LTS log group CTS created for the trail (group CTS)."
+  value       = huaweicloud_cts_tracker.org.group_id
 }
 
 output "cts_log_stream_id" {
-  description = "CTS LTS log stream ID."
-  value       = huaweicloud_lts_stream.cts.id
+  description = "ID of the LTS log stream CTS created for the trail (stream system-trace)."
+  value       = huaweicloud_cts_tracker.org.stream_id
+}
+
+output "cts_notification_ids" {
+  description = "Map of key-event notification name -> ID"
+  value       = { for k, v in huaweicloud_cts_notification.this : k => v.id }
 }

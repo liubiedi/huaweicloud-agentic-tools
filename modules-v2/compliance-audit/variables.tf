@@ -56,24 +56,6 @@ variable "audit_retention_days" {
   type    = number
   default = 365
 }
-variable "lts_hot_retention_days" {
-  type    = number
-  default = 90
-}
-
-# ---- CTS LTS log group + stream (the single LTS pair, for the CTS trail) ----
-
-variable "cts_log_group_name" {
-  type        = string
-  default     = "lz-cts"
-  description = "CTS LTS log group name. Supports {account-name}."
-}
-variable "cts_log_stream_name" {
-  type        = string
-  default     = ""
-  description = "CTS LTS log stream name. Supports {account-name}. Blank = cts_log_group_name."
-}
-
 # ---- KMS ----
 
 variable "kms_pending_days" {
@@ -83,9 +65,27 @@ variable "kms_pending_days" {
 
 # ---- CTS extensions (deferred - default off) ----
 
+# Key-event notifications on the org tracker: each entry is one notification
+# (customized operation type) whose operations blocks list the (service,
+# resource, trace names) triples that fire it. All entries publish to
+# cts_notification_topic_urn (the CTS-admin account's ops SMN topic).
 variable "cts_notifications" {
-  type    = any
+  type = list(object({
+    name        = string
+    description = optional(string, "")
+    operations = list(object({
+      service     = string
+      resource    = string
+      trace_names = list(string)
+    }))
+  }))
   default = []
+}
+
+variable "cts_notification_topic_urn" {
+  type        = string
+  default     = ""
+  description = "SMN topic URN that cts_notifications publish to. Required when cts_notifications is non-empty."
 }
 
 variable "cts_data_trackers" {
