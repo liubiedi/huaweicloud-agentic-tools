@@ -41,7 +41,7 @@ variable "cloud_log_resources" {
     log_group_id = optional(string, "")
   }))
   default     = []
-  description = "Cross-account log sources to ingest into SecMaster. Driven by module 6 outputs."
+  description = "Cross-account log sources to ingest into SecMaster. Driven by 06-observability outputs."
 }
 
 variable "alert_rules" {

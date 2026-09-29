@@ -1,7 +1,7 @@
 # --- Monitoring outputs ---
 
 output "smn_topic_urn" {
-  description = "SMN topic URN - consumed by module 6 alarms + CES one-click in this module"
+  description = "SMN topic URN - consumed by 06-observability alarms + CES one-click in this module"
   value       = huaweicloud_smn_topic.lz_alerts.id
 }
 

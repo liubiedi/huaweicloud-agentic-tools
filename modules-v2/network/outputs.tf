@@ -5,9 +5,6 @@ output "er_id" {
   value       = local.hub_enabled ? huaweicloud_er_instance.hub[0].id : null
 }
 
-# --- ER resource URN ---
-# Note: Assembled from the resource ID, region and owner account.
-
 output "er_route_table_ids" {
   description = "Map of route table name -> ID"
   value       = local.hub_enabled ? { for k, v in huaweicloud_er_route_table.rt : k => v.id } : {}

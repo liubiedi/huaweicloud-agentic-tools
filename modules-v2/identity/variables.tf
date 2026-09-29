@@ -31,13 +31,13 @@ variable "enable_iam_baseline" {
 variable "identity_store_id" {
   type        = string
   default     = ""
-  description = "Identity store ID from module 1 output. Required when enable_identity_center_content = true."
+  description = "Identity store ID from 01-foundation output. Required when enable_identity_center_content = true."
 }
 
 variable "identity_center_instance_id" {
   type        = string
   default     = ""
-  description = "IC instance ID from module 1 output. Required when enable_identity_center_content = true."
+  description = "IC instance ID from 01-foundation output. Required when enable_identity_center_content = true."
 }
 
 variable "session_duration" {
@@ -115,7 +115,7 @@ variable "account_assignments" {
     permission_set = string
   }))
   default     = []
-  description = "Bind (group, permission_set, account) triples. account_id from module 1's accounts output."
+  description = "Bind (group, permission_set, account) triples. account_id from 01-foundation's accounts output."
 }
 
 variable "registered_regions" {

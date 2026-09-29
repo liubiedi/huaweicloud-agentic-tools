@@ -7,13 +7,11 @@ terraform {
   }
 }
 
-# --- Perimeter input validation ---
-
 # --- SCP attachment validation ---
 check "attach_target_when_scps" {
   assert {
     condition     = !var.enable_scps || var.attach_target_id != ""
-    error_message = "attach_target_id is required when enable_scps = true (typically the Workloads OU ID from module 1)."
+    error_message = "attach_target_id is required when enable_scps = true (typically the Workloads OU ID from 01-foundation)."
   }
 }
 

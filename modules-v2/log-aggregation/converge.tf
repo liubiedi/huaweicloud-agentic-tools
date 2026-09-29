@@ -1,4 +1,3 @@
-# --- Organization log aggregation ---
 
 # --- Log receiving ---
 # Note: Removing this resource disables receiving.

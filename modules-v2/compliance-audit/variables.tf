@@ -39,7 +39,7 @@ variable "home_region" {
 variable "member_account_ids" {
   type        = list(string)
   default     = []
-  description = "All created account IDs (from module 1's accounts output). Used for cross-account bucket policies + LTS cross_account_access."
+  description = "All created account IDs (from 01-foundation's accounts output). Used for cross-account bucket policies + LTS cross_account_access."
 }
 
 # --- Retention settings ---
@@ -61,8 +61,6 @@ variable "kms_pending_days" {
   # Key deletion waiting period
   default = 7
 }
-
-# --- CTS extensions ---
 
 # --- Key-event notifications ---
 variable "cts_notifications" {

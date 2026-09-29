@@ -34,7 +34,7 @@ output "ou_ids" {
 }
 
 output "workloads_ou_id" {
-  description = "Workloads OU ID, or null if no OU named 'Workloads' exists. Module 4 uses this as default SCP attach target."
+  description = "Workloads OU ID, or null if no OU named 'Workloads' exists. 04-perimeter uses this as default SCP attach target."
   value = lookup(merge(
     { for k, v in huaweicloud_organizations_organizational_unit.this : k => v.id },
     { for k, v in huaweicloud_organizations_organizational_unit.child : k => v.id },
@@ -64,7 +64,7 @@ output "accounts" {
 }
 
 output "identity_store_id" {
-  description = "Identity Center identity store ID - consumed by module 2 for IC user/group/permission_set content"
+  description = "Identity Center identity store ID - consumed by the identity module for IC user/group/permission_set content"
   value       = huaweicloud_identitycenter_instance.this.identity_store_id
 }
 

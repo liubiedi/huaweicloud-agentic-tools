@@ -35,7 +35,7 @@ variable "subscribers" {
 variable "smn_lts_group_id" {
   type        = string
   default     = ""
-  description = "LTS group ID for SMN delivery logs (a module 6 LTS group). Blank = no SMN log delivery."
+  description = "LTS group ID for SMN delivery logs (a 06-observability LTS group). Blank = no SMN log delivery."
 }
 
 variable "smn_lts_stream_id" {

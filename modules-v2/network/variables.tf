@@ -20,8 +20,6 @@ variable "enable_spoke" {
   default = false
 }
 
-# --- Hub VPC inputs ---
-
 # --- Hub address ranges ---
 
 variable "hub_vpcs" {
@@ -150,7 +148,7 @@ variable "cfw_default_route_tables" {
 variable "subnet_dns" {
   type        = list(string)
   default     = []
-  description = "DNS server IPs (max 2) set on every hub + spoke subnet via DHCP (primary_dns/secondary_dns). Point these at the inbound DNS resolver endpoint IPs (module 09-dns) so all accounts resolve the central private zones + on-prem forwarding rules. Empty = Huawei default DNS."
+  description = "DNS server IPs (max 2) set on every hub + spoke subnet via DHCP (primary_dns/secondary_dns). Point these at the inbound DNS resolver endpoint IPs (08-network-dns) so all accounts resolve the central private zones + on-prem forwarding rules. Empty = Huawei default DNS."
   validation {
     condition     = length(var.subnet_dns) <= 2
     error_message = "subnet_dns accepts at most 2 IPs (primary + secondary)."
@@ -170,10 +168,6 @@ variable "flow_log_retention_days" {
   default     = 90
   description = "Hot LTS retention (days) of the per-VPC '<vpc>-flowlog' groups/streams."
 }
-
-# --- Hub VPC routing ---
-
-# --- Spoke routing ---
 
 # --- Firewall inputs ---
 
@@ -505,8 +499,8 @@ variable "spoke_er_id" {
   description = "Hub ER ID (from hub outputs); spoke attaches to this."
 }
 
-
-# --- Optional feature switches ---
+# --- Currently unused feature inputs ---
+# Note: These inputs enable nothing in this module; no resource reads them.
 
 variable "enable_dns" {
   type    = bool
@@ -537,4 +531,3 @@ variable "enable_traffic_mirror" {
   default = false
 }
 
-# --- Optional feature configuration ---

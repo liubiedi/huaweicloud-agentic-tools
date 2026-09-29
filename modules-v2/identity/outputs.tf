@@ -21,6 +21,6 @@ output "agency_ids" {
 }
 
 output "agency_urns" {
-  description = "Map of service agency name -> agency ID. (The resource exposes no URN; the ID is the usable identifier for OBS bucket policies / module 6.)"
+  description = "Map of service agency name -> agency ID. (The resource exposes no URN; the ID is the usable identifier for OBS bucket policies / 06-observability.)"
   value       = { for k, v in huaweicloud_identity_agency.this : k => v.id }
 }

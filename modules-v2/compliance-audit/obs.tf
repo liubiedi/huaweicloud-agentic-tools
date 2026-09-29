@@ -1,4 +1,3 @@
-# --- Audit storage ---
 
 # --- CTS audit bucket ---
 

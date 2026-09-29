@@ -144,7 +144,7 @@ variable "tag_policies" {
 
 variable "create_enterprise_project" {
   type        = bool
-  description = "Create the landing-zone bootstrap enterprise project. Requires EPS permissions on the provider AK/SK. Module 8 creates additional cost-center EPs."
+  description = "Create the landing-zone bootstrap enterprise project. Requires EPS permissions on the provider AK/SK. 02-finance creates additional cost-center EPs."
   default     = false
 }
 

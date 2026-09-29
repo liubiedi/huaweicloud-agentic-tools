@@ -1,4 +1,3 @@
-# --- Spoke network resources ---
 
 # --- Spoke VPC and subnets ---
 resource "huaweicloud_vpc" "spoke" {

@@ -23,7 +23,7 @@ variable "enable_scps" {
 variable "attach_target_id" {
   type        = string
   default     = ""
-  description = "Entity the SCPs attach to (typically the Workloads OU ID from module 1). Avoid org root - it would impact core accounts. Required when enable_scps = true."
+  description = "Entity the SCPs attach to (typically the Workloads OU ID from 01-foundation). Avoid org root - it would impact core accounts. Required when enable_scps = true."
 }
 
 variable "org_id" {

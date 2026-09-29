@@ -11,8 +11,6 @@ terraform {
   }
 }
 
-# --- Organization resources ---
-
 # --- Organization mappings ---
 
 locals {
@@ -142,8 +140,6 @@ resource "huaweicloud_organizations_policy_attach" "custom_tag" {
   policy_id = each.value.id
   entity_id = huaweicloud_organizations_organization.this.root_id
 }
-
-# --- Bootstrap enterprise project ---
 
 # --- Enterprise project authorization ---
 # Note: Removing the resource does not revoke the authorization grant.

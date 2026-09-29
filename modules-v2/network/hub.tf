@@ -1,4 +1,3 @@
-# --- Hub network resources ---
 
 # --- Hub VPCs and subnets ---
 
@@ -471,7 +470,7 @@ resource "huaweicloud_ram_resource_share" "er_attachment" {
   count = local.hub_enabled && length(var.ram_share_principals) > 0 ? 1 : 0
 
   name = var.er_share_name
-  # ER resource URN
+  # ER resource URN, assembled from the instance ID, region and owner account
   resource_urns = [
     format(
       "er:%s:%s:instances:%s",

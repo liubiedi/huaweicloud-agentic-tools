@@ -7,8 +7,6 @@ terraform {
   }
 }
 
-# --- Basic Anti-DDoS protection ---
-
 # --- Alarm topic lookup ---
 data "huaweicloud_smn_topics" "alarm" {
   for_each = toset([for a in var.antiddos : a.alarm_topic if a.alarm_topic != ""])
@@ -30,8 +28,6 @@ resource "huaweicloud_antiddos_basic" "this" {
   traffic_threshold = each.value.threshold_mbps
   topic_urn         = each.value.alarm_topic != "" ? data.huaweicloud_smn_topics.alarm[each.value.alarm_topic].topics[0].topic_urn : null
 }
-
-# --- Dedicated WAF protection ---
 
 # --- WAF instance flavor selection ---
 data "huaweicloud_compute_flavors" "waf" {

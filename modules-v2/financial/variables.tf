@@ -32,7 +32,7 @@ variable "cost_centers" {
     enterprise_project_type = optional(string, "prod")
   }))
   default     = {}
-  description = "Map of cost-center EP name -> config. Additive to module 1's single bootstrap EP."
+  description = "Map of cost-center EP name -> config. Additive to the 01-foundation bootstrap EP."
 }
 
 # --- Predefined tags ---
