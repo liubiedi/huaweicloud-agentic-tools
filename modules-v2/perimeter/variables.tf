@@ -5,7 +5,7 @@
 #   - Predefined tags : enable_predefined_tags = true (per-account TMS dictionary)
 #
 # The SCPs are the Landing Zone identity guardrails. Each policy in var.scps
-# Is self-contained: enabled / enforce / name + that policy's own settings.
+# is self-contained: enabled / enforce / name + that policy's own settings.
 # Authored as v5.0 JSON per the Huawei Organizations SCP reference.
 
 variable "environment" {
@@ -200,8 +200,8 @@ variable "scps" {
 
 # ---- Config (RMS) org setup ----
 # Set enable_config = true (with the module called under the Config admin
-# Account's provider) to create the resource recorder + org aggregator. Left
-# Off for the SCP and tags-only invocations.
+# account's provider) to create the resource recorder + org aggregator. Left
+# off for the SCP and tags-only invocations.
 
 variable "home_region" {
   type        = string
@@ -269,7 +269,7 @@ variable "conformance_packs" {
 
 # ---- Predefined tags (TMS tag dictionary) ----
 # Set enable_predefined_tags = true (with enable_scps = false) to invoke this
-# Module purely as a per-account tag-dictionary writer.
+# module purely as a per-account tag-dictionary writer.
 
 variable "enable_predefined_tags" {
   type        = bool

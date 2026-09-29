@@ -46,6 +46,6 @@ check "spoke_inputs_provided" {
 }
 
 # (Removed check "hub_er_required_for_spoke": in the combined single-apply model
-# Spoke_er_id = module.network_hub.er_id is created in the same run, so it's
-# Unknown at plan and the check only produced "known after apply" noise. A missing
+# spoke_er_id = module.network_hub.er_id is created in the same run, so it's
+# unknown at plan and the check only produced "known after apply" noise. A missing
 # ER would fail the spoke ER attachment anyway.)

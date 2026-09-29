@@ -130,7 +130,7 @@ variable "delegated_administrators" {
 
 # ---- Tag policies (optional) ----
 # Tag-key governance is expressed entirely via tag_policies (one per row of the
-# 01_Foundation TagPolicies sheet). A row with blank values + blank scope is
+# the tag-policy table). A row with blank values + blank scope is
 # key-presence-only enforcement.
 
 variable "tag_policies" {

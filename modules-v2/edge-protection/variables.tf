@@ -2,11 +2,11 @@
 # WAF instance/policy/domains.
 #
 # Deploys into the account that owns the protected EIPs and the WAF VPC - the
-# Network hub account (the env passes a hub provider alias). Both APIs work in
-# Agency-token cross-account mode (no OBS / v5-IAM here).
+# network hub account (the env passes a hub provider alias). Both APIs work in
+# agency-token cross-account mode (no OBS / v5-IAM here).
 #
 # Anti-DDoS Basic is pay-per-use tuning of the free per-EIP protection: destroy
-# Resets the EIP to the default cleaning threshold rather than deleting anything.
+# resets the EIP to the default cleaning threshold rather than deleting anything.
 # The dedicated WAF instance is postPaid (fully Terraform-provisionable); CNAD
 # Advanced / AAD need pre-purchased instances and are out of scope.
 

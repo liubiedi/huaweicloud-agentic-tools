@@ -7,10 +7,10 @@ terraform {
 
 # Data perimeter. SCP locals + resources live in policies.tf; the
 # TMS predefined-tag dictionary lives in tms-tags.tf. This file holds the
-# Input-consistency checks.
+# input-consistency checks.
 
 # SCPs must attach somewhere (the Workloads OU). Tags-only invocations set
-# Enable_scps = false and are exempt.
+# enable_scps = false and are exempt.
 check "attach_target_when_scps" {
   assert {
     condition     = !var.enable_scps || var.attach_target_id != ""
@@ -19,7 +19,7 @@ check "attach_target_when_scps" {
 }
 
 # The RAM-share / RMS-aggregation guardrails need an allowed org path. It can
-# Come from org_id + root_ou_id, or be set per-policy via allowed_org_path.
+# come from org_id + root_ou_id, or be set per-policy via allowed_org_path.
 check "org_path_for_cross_org_scps" {
   assert {
     condition     = !(var.enable_scps && var.scps.deny_unauthorized_ram_share.enabled) || local._ram_org_path != ""

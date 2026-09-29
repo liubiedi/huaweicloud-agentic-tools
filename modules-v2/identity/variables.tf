@@ -5,8 +5,8 @@
 #   - enable_iam_baseline            : run per-account (IAM hardening + agencies)
 #
 # When called per-account, set enable_iam_baseline = true and leave
-# Enable_identity_center_content = false. The env layer calls this module
-# Multiple times with different provider aliases and different enable flags.
+# enable_identity_center_content = false. The env layer calls this module
+# multiple times with different provider aliases and different enable flags.
 
 variable "environment" {
   type        = string
