@@ -1,4 +1,4 @@
-# ---- Module 1 - organization and account management ----
+# --- Organization inputs ---
 
 variable "environment" {
   type        = string
@@ -18,7 +18,7 @@ variable "tags" {
   default     = {}
 }
 
-# ---- Organization ----
+# --- Organization settings ---
 
 variable "enabled_policy_types" {
   type        = set(string)
@@ -31,7 +31,7 @@ variable "enabled_policy_types" {
   }
 }
 
-# ---- Organizational Units ----
+# --- Organizational units ---
 
 variable "organizational_units" {
   type = map(object({
@@ -51,7 +51,7 @@ variable "organizational_units" {
   }
 }
 
-# ---- Account creation - Pattern C ----
+# --- Member accounts ---
 
 variable "core_accounts" {
   type = map(object({
@@ -86,7 +86,7 @@ variable "cross_account_agency_name" {
   default     = "OrganizationAccountAccessAgency"
 }
 
-# ---- Identity Center ----
+# --- Identity Center inputs ---
 
 variable "identity_center_alias" {
   type        = string
@@ -94,7 +94,7 @@ variable "identity_center_alias" {
   default     = ""
 }
 
-# ---- Trusted services ----
+# --- Trusted services ---
 
 variable "trusted_services" {
   type        = list(string)
@@ -128,10 +128,7 @@ variable "delegated_administrators" {
   default     = {}
 }
 
-# ---- Tag policies (optional) ----
-# Tag-key governance is expressed entirely via tag_policies (one per row of the
-# the tag-policy table). A row with blank values + blank scope is
-# key-presence-only enforcement.
+# --- Tag policies ---
 
 variable "tag_policies" {
   type = list(object({
@@ -143,7 +140,7 @@ variable "tag_policies" {
   default     = []
 }
 
-# ---- Enterprise project (single bootstrap) ----
+# --- Bootstrap enterprise project ---
 
 variable "create_enterprise_project" {
   type        = bool

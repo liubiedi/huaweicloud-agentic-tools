@@ -1,3 +1,5 @@
+# --- Provider requirements ---
+
 terraform {
   required_version = ">= 1.6.3"
   required_providers {
@@ -5,19 +7,15 @@ terraform {
   }
 }
 
-# ---- S2C VPN gateways ----
-# attachment=vpc binds to a 05-network VPC (vpc_id + connect_subnet + local_subnets);
-# attachment=er binds to the hub ER. network_type=public creates two EIPs inline.
+# --- Site-to-cloud VPN gateways ---
 
 locals {
-  # Distinct flavor+attachment combos across all gateways. Blank flavor -> the API
-  # default (Professional1). We query VPN AZ availability once per combo.
+  # Gateway flavor and attachment combinations
   gw_az_combos = toset([
     for g in var.gateways : "${g.flavor != "" ? g.flavor : "Professional1"}__${g.attachment}"
   ])
 
-  # Per-gateway AZ list: the configured AZs if given, otherwise the first
-  # two AZs the API reports as valid for that flavor+attachment.
+  # Availability zone selection
   gw_azs = {
     for g in var.gateways : g.name => (
       length(g.azs) > 0 ? g.azs : slice(
@@ -28,8 +26,7 @@ locals {
   }
 }
 
-# Valid AZs per flavor+attachment. attachment_type must match the gateway's, since
-# vpc and er gateways can be offered in different AZs.
+# --- Gateway availability lookup ---
 data "huaweicloud_vpn_gateway_availability_zones" "this" {
   for_each = local.gw_az_combos
 
@@ -49,18 +46,18 @@ resource "huaweicloud_vpn_gateway" "this" {
   flavor                = each.value.flavor != "" ? each.value.flavor : null
   enterprise_project_id = var.enterprise_project_id
 
-  # VPC attachment: the gateway lives directly in the VPC (vpc_id + connect_subnet).
+  # VPC attachment
   vpc_id         = each.value.attachment == "vpc" ? var.vpc_ids[each.value.vpc] : null
   local_subnets  = each.value.attachment == "vpc" ? each.value.local_subnets : null
   connect_subnet = each.value.attachment == "vpc" && each.value.connect_subnet != "" ? var.subnet_ids["${each.value.vpc}__${each.value.connect_subnet}"] : null
 
-  # ER attachment: the gateway still needs an access VPC + subnet (its interconnection
-  # plane) - Huawei rejects an ER gateway without access_vpc_id. Reuse VPC/ConnectSubnet.
+  # ER access network
+  # Note: ER gateways also require an access VPC and subnet.
   er_id            = each.value.attachment == "er" ? var.er_id : null
   access_vpc_id    = each.value.attachment == "er" && each.value.vpc != "" ? var.vpc_ids[each.value.vpc] : null
   access_subnet_id = each.value.attachment == "er" && each.value.connect_subnet != "" ? var.subnet_ids["${each.value.vpc}__${each.value.connect_subnet}"] : null
 
-  # Public gateway: create the active (eip1) + standby (eip2) EIPs.
+  # Active and standby public IPs
   dynamic "eip1" {
     for_each = each.value.network_type == "public" ? [1] : []
     content {
@@ -81,10 +78,8 @@ resource "huaweicloud_vpn_gateway" "this" {
   }
 }
 
-# ---- ER routing for er-attached gateways ----
-# association steers traffic arriving from on-prem (hybrid route table);
-# propagation publishes the on-prem routes. On-prem routes enter ER route
-# tables via propagation only.
+# --- VPN ER routing ---
+# Note: Association selects the inbound table; propagation publishes on-premises routes.
 
 resource "huaweicloud_er_association" "gw" {
   for_each = {
@@ -108,7 +103,7 @@ resource "huaweicloud_er_propagation" "gw" {
   attachment_id  = huaweicloud_vpn_gateway.this[each.key].er_attachment_id
 }
 
-# ---- Customer gateways (on-prem devices) ----
+# --- Customer gateways ---
 
 resource "huaweicloud_vpn_customer_gateway" "this" {
   for_each = { for c in var.customer_gateways : c.name => c }
@@ -119,14 +114,14 @@ resource "huaweicloud_vpn_customer_gateway" "this" {
   route_mode = each.value.route_mode
 }
 
-# ---- IPsec connections ----
+# --- IPsec connections ---
 
 resource "huaweicloud_vpn_connection" "this" {
   for_each = { for c in var.connections : c.name => c }
 
   name       = each.value.name
   gateway_id = huaweicloud_vpn_gateway.this[each.value.gateway].id
-  # gateway_ip = the gateway EIP ID for this connection's ha_role (master=eip1, slave=eip2).
+  # Connection gateway IP selection
   gateway_ip = each.value.ha_role == "slave" ? (
     huaweicloud_vpn_gateway.this[each.value.gateway].eip2[0].id
     ) : (

@@ -1,12 +1,12 @@
+# --- DNS inputs ---
+
 variable "enterprise_project_id" {
   type        = string
   default     = "0"
   description = "Enterprise project ID for the DNS zones. '0' = default project."
 }
 
-# ---- Cross-resource resolution maps (provided by the env from prior-env state) ----
-# The module takes name->ID maps and resolves the sheet's name references itself,
-# so the env stays a thin passthrough of the 05-network remote state.
+# --- Network name-to-ID maps ---
 
 variable "vpc_ids" {
   type        = map(string)
@@ -20,7 +20,7 @@ variable "subnet_ids" {
   description = "Subnet key '<vpc>__<subnet>' -> subnet ID (05-network hub_subnet_ids). Used to place resolver-endpoint IPs. Resolver endpoints must sit in a hub VPC (spoke subnet IDs are not exported by 05-network)."
 }
 
-# ---- Zones + records ----
+# --- Zones and records ---
 
 variable "public_zones" {
   type = list(object({
@@ -35,10 +35,12 @@ variable "public_zones" {
 
 variable "private_zones" {
   type = list(object({
-    name        = string
-    vpcs        = list(string) # VPC NAMES (keys of var.vpc_ids); first = primary router, rest associated
-    ttl         = optional(number, 300)
-    recursive   = optional(bool, false) # true = proxy_pattern RECURSIVE (unmatched subdomains fall through to public); false = AUTHORITY
+    name = string
+    # VPC names; first is the primary association
+    vpcs = list(string)
+    ttl  = optional(number, 300)
+    # Note: true enables public fallback; false uses authoritative resolution.
+    recursive   = optional(bool, false)
     description = optional(string, "")
   }))
   default     = []
@@ -47,7 +49,8 @@ variable "private_zones" {
 
 variable "recordsets" {
   type = list(object({
-    zone        = string # FK -> public_zones[].name or private_zones[].name
+    # Public or private zone name
+    zone        = string
     name        = string
     type        = string
     records     = list(string)
@@ -58,15 +61,19 @@ variable "recordsets" {
   description = "Record sets inside the zones above. zone references a zone by name."
 }
 
-# ---- Hybrid resolver ----
+# --- Hybrid resolver inputs ---
 
 variable "resolver_endpoints" {
   type = list(object({
-    name      = string
-    direction = string                     # inbound | outbound
-    vpc       = string                     # VPC NAME hosting the endpoint subnets
-    subnets   = list(string)               # subnet names within vpc (>=1). Huawei needs >=2 resolver IPs: use >=2 subnets, or 1 subnet + >=2 ips
-    ips       = optional(list(string), []) # optional fixed IPs, one per subnet (same order)
+    name = string
+    # Values: inbound, outbound
+    direction = string
+    # Resolver VPC name
+    vpc = string
+    # Note: Use at least two subnets, or one subnet with at least two fixed IPs.
+    subnets = list(string)
+    # Optional resolver IPs in subnet order
+    ips = optional(list(string), [])
   }))
   default     = []
   description = "DNS resolver endpoints. direction=inbound lets on-prem query private zones; direction=outbound feeds resolver_rules."
@@ -74,11 +81,15 @@ variable "resolver_endpoints" {
 
 variable "resolver_rules" {
   type = list(object({
-    name        = string
-    endpoint    = string       # FK -> resolver_endpoints[].name (must be outbound)
-    domain_name = string       # domain to forward, trailing dot
-    target_ips  = list(string) # on-prem / external DNS server IPs
-    vpcs        = list(string) # VPC NAMES to associate the rule with
+    name = string
+    # Outbound resolver endpoint name
+    endpoint = string
+    # Forwarded domain with trailing dot
+    domain_name = string
+    # Upstream DNS server IPs
+    target_ips = list(string)
+    # Associated VPC names
+    vpcs = list(string)
   }))
   default     = []
   description = "Outbound forwarding rules. Each rule forwards queries for domain_name to target_ips, and is associated to vpcs."
@@ -86,10 +97,13 @@ variable "resolver_rules" {
 
 variable "access_logs" {
   type = list(object({
-    name       = string
-    lts_group  = string       # LTS log group NAME (resolved via data source)
-    lts_stream = string       # LTS log stream NAME (resolved via data source)
-    vpcs       = list(string) # VPC NAMES whose resolver queries are logged
+    name = string
+    # LTS log group name
+    lts_group = string
+    # LTS log stream name
+    lts_stream = string
+    # Logged VPC names
+    vpcs = list(string)
   }))
   default     = []
   description = "DNS query access logging to LTS. lts_group/lts_stream are the LTS log group / stream names the module CREATES (one group per distinct name)."

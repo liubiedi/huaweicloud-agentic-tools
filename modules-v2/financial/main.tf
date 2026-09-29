@@ -1,3 +1,5 @@
+# --- Provider requirements ---
+
 terraform {
   required_version = ">= 1.6.3"
   required_providers {
@@ -7,8 +9,7 @@ terraform {
 }
 
 locals {
-  # Expand predefined_tags into individual (key, value) pairs.
-  # For tags with no defined values, emit a single (key, "*") pair.
+  # Predefined tag pairs
   predefined_tag_pairs = flatten([
     for t in var.predefined_tags : (
       length(t.values) > 0 ?
@@ -18,17 +19,14 @@ locals {
   ])
 }
 
-# ---- Multi-EP ----
-# This module is called once per target account (cost-center fan-out), so the
-# EPS authority is granted in each account before its enterprise projects are
-# created. No-args; deleting it does NOT revoke the grant.
+# --- Enterprise project authorization ---
+# Note: Removing the resource does not revoke the authorization grant.
 
 resource "huaweicloud_enterprise_project_authority" "this" {
   count = var.enable_multi_ep ? 1 : 0
 }
 
-# The authority grant propagates asynchronously; sleep once when the grant
-# is first created.
+# --- Authorization propagation wait ---
 resource "time_sleep" "eps_authority_propagation" {
   count = var.enable_multi_ep ? 1 : 0
 
@@ -49,7 +47,7 @@ resource "huaweicloud_enterprise_project" "cost_centers" {
   depends_on = [time_sleep.eps_authority_propagation]
 }
 
-# ---- TMS predefined tags (one resource holds the entire tag dictionary) ----
+# --- Predefined tag dictionary ---
 
 resource "huaweicloud_tms_tags" "predefined" {
   count = var.enable_predefined_tags && length(local.predefined_tag_pairs) > 0 ? 1 : 0
@@ -63,13 +61,14 @@ resource "huaweicloud_tms_tags" "predefined" {
   }
 }
 
-# ---- TMS bulk resource tagging ----
+# --- Bulk resource tagging ---
 
 resource "huaweicloud_tms_resource_tags" "bulk" {
   for_each = var.enable_bulk_tag_resources ? { for idx, t in var.bulk_tag_targets : tostring(idx) => t } : {}
 
   project_id = each.value.project_id
-  tags       = each.value.tags # tags is a map attribute, not a block
+  # Resource tag map
+  tags = each.value.tags
 
   dynamic "resources" {
     for_each = each.value.resources

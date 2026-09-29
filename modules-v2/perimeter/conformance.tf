@@ -1,13 +1,5 @@
-# Config (RMS) conformance packs - org-wide DETECTIVE compliance. Deployed as
-# huaweicloud_rms_organizational_assignment_package at the org (organization_id),
-# evaluated across every member except excluded_accounts. Runs in the Config
-# admin account alongside the recorder + aggregator (gated by enable_config).
-#
-# template_key is tenant/region-specific, so it is NOT hard-coded. It is resolved
-# at plan time from the live templates data source by matching the readable pack
-# name against the available template keys; a spec-supplied template_key overrides
-# the match. If a name can't be resolved, the precondition fails and lists the
-# available keys so the operator can set one explicitly.
+# --- Organization conformance packs ---
+# Note: Template keys resolve by name unless explicitly supplied.
 
 data "huaweicloud_rms_assignment_package_templates" "all" {
   count = var.enable_config && length(var.conformance_packs) > 0 ? 1 : 0
@@ -17,7 +9,7 @@ locals {
   _templates      = try(data.huaweicloud_rms_assignment_package_templates.all[0].templates, [])
   _available_keys = local._templates[*].template_key
 
-  # Normalize to lowercase alphanumerics for fuzzy name->key matching.
+  # Template name normalization
   _enabled_packs = [for p in var.conformance_packs : p if p.enabled]
 
   conformance_resolved = {
@@ -36,17 +28,14 @@ locals {
   }
 }
 
-# Per-pack template detail - returns the template's parameters and body.
-# Filtered by template_key because the list data source above doesn't reliably
-# populate parameters. Used to build vars_structure below.
+# --- Conformance template lookup ---
 data "huaweicloud_rms_assignment_package_templates" "detail" {
   for_each     = { for k, v in local.conformance_resolved : k => v if v.template_key != null }
   template_key = each.value.template_key
 }
 
 locals {
-  # Parameter defaults per pack, taken from the template BODY (the parameters
-  # listing is lossy); spec-supplied Vars override individual parameters.
+  # Template parameter defaults
   _tpl_var_defaults = {
     for k, d in data.huaweicloud_rms_assignment_package_templates.detail :
     k => {
@@ -55,8 +44,7 @@ locals {
     }
   }
 
-  # Fallback for templates whose body isn't parseable: the parameters listing,
-  # with typed empty JSON synthesized for its lossy "" defaults.
+  # Parameter-list fallback
   _pack_var_values = {
     for k in keys(data.huaweicloud_rms_assignment_package_templates.detail) :
     k => (
@@ -76,8 +64,8 @@ resource "huaweicloud_rms_organizational_assignment_package" "this" {
   template_key      = each.value.template_key
   excluded_accounts = length(each.value.excluded_accounts) > 0 ? each.value.excluded_accounts : null
 
-  # The org assignment package requires every template parameter explicitly;
-  # values come from the template body's defaults plus spec overrides.
+  # Complete template parameters
+  # Note: Every template parameter is passed explicitly, including defaults.
   dynamic "vars_structure" {
     for_each = try(local._pack_var_values[each.key], {})
     content {
@@ -86,8 +74,7 @@ resource "huaweicloud_rms_organizational_assignment_package" "this" {
     }
   }
 
-  # Org conformance packs require an enabled resource recorder in this
-  # account, so the module also creates the recorder.
+  # Note: Enable the account recorder before creating organization packs.
   depends_on = [huaweicloud_rms_resource_recorder.this]
 
   lifecycle {

@@ -1,3 +1,5 @@
+# --- Provider requirements ---
+
 terraform {
   required_version = ">= 1.6.3"
   required_providers {
@@ -6,40 +8,41 @@ terraform {
 }
 
 locals {
-  # ---- friendly-string -> API-int enum maps ----
-  addr_type_num = { ipv4 = 0, ipv6 = 1, domain = 2 } # black/white list allows 'domain'
+  # API value mappings
+  # Blocklist and allowlist address types
+  addr_type_num = { ipv4 = 0, ipv6 = 1, domain = 2 }
   dom_type_num  = { application = 0, network = 1 }
   proto_num     = { tcp = 6, udp = 17, icmp = 1, icmpv6 = 58, any = -1 }
   action_num    = { allow = 0, deny = 1 }
   status_num    = { enable = 1, disable = 0 }
   list_type_num = { blacklist = 4, whitelist = 5 }
   direction_num = { source = 0, destination = 1 }
-  # ACL rule direction (internet border only): 0=inbound, 1=outbound.
+  # Internet rule direction
   rule_direction_num = { inbound = 0, outbound = 1 }
-  # ACL rule kind -> (border, rule type). type: 0=Internet, 1=VPC, 2=NAT.
+  # Rule border and type
   acl_kind = {
     eip = { border = "internet", type = 0 }
     nat = { border = "internet", type = 2 }
     vpc = { border = "vpc", type = 1 }
   }
-  # ACL destination_domain_group_type: 4=application, 6=network (differs from the
-  # domain-name-group resource's own type, 0/1).
+  # Destination domain-group types
+  # Note: ACL values 4/6 differ from domain-group resource values 0/1.
   dom_group_rule_type = { application = 4, network = 6 }
 
-  # Pick the protected object for a border.
+  # Protected objects by border
   object_for = { internet = var.internet_object_id, vpc = var.vpc_object_id }
 
-  # Domain-group type by name (for destination_domain_group_type on ACL rules).
+  # Domain-group type lookup
   domain_group_type_by_name = { for g in var.domain_groups : g.name => g.type }
 
-  # Protocols covered by each service group (for custom_service_groups.protocols).
+  # Service-group protocols
   svc_group_protocols = {
     for g in var.service_groups : g.name =>
     distinct([for m in g.members : local.proto_num[split("/", m)[0]]])
   }
 }
 
-# ---- IP address groups (+ members) ----
+# --- IP address groups ---
 
 resource "huaweicloud_cfw_address_group" "this" {
   for_each = { for g in var.address_groups : g.name => g }
@@ -49,7 +52,7 @@ resource "huaweicloud_cfw_address_group" "this" {
   address_type = local.addr_type_num[each.value.address_type]
   description  = each.value.description
 
-  # Replace before destroy: ACL rules may still reference the group.
+  # Note: Create the replacement before deleting a group referenced by ACL rules.
   lifecycle {
     create_before_destroy = true
   }
@@ -75,7 +78,7 @@ resource "huaweicloud_cfw_address_group_member" "this" {
   }
 }
 
-# ---- Domain name groups ----
+# --- Domain name groups ---
 
 resource "huaweicloud_cfw_domain_name_group" "this" {
   for_each = { for g in var.domain_groups : g.name => g }
@@ -93,13 +96,13 @@ resource "huaweicloud_cfw_domain_name_group" "this" {
     }
   }
 
-  # Replace before destroy: ACL rules may still reference the group.
+  # Note: Create the replacement before deleting a group referenced by ACL rules.
   lifecycle {
     create_before_destroy = true
   }
 }
 
-# ---- Service groups (+ members) ----
+# --- Service groups ---
 
 resource "huaweicloud_cfw_service_group" "this" {
   for_each = { for g in var.service_groups : g.name => g }
@@ -114,7 +117,7 @@ resource "huaweicloud_cfw_service_group" "this" {
 }
 
 locals {
-  # member string 'protocol/srcport/dstport' ('any' port -> full range).
+  # Service member parsing
   service_members = merge([
     for g in var.service_groups : {
       for m in g.members : "${g.name}__${m}" => {
@@ -140,7 +143,7 @@ resource "huaweicloud_cfw_service_group_member" "this" {
   }
 }
 
-# ---- ACL rules ----
+# --- Firewall ACL rules ---
 
 locals {
   acl_parsed = {
@@ -150,8 +153,8 @@ locals {
       action = local.action_num[r.action]
       status = local.status_num[r.status]
       desc   = r.description
-      # Internet-border rules need a direction (0=inbound, 1=outbound);
-      # default: nat -> outbound, eip -> inbound. VPC rules have none.
+      # Internet rule direction
+      # Note: NAT defaults to outbound; EIP defaults to inbound; VPC rules omit direction.
       direction = local.acl_kind[r.kind].border != "internet" ? null : (
         r.direction != "" ? local.rule_direction_num[r.direction] :
         (r.kind == "nat" ? 1 : 0)
@@ -166,7 +169,7 @@ locals {
       dst_groups    = [for t in r.destination : trimprefix(t, "addrgroup:") if startswith(t, "addrgroup:")]
       dst_domain    = [for t in r.destination : trimprefix(t, "domaingroup:") if startswith(t, "domaingroup:")]
 
-      # 'any' service overrides everything -> applications=["ANY"].
+      # Any-service override
       service_any     = contains(r.service, "any")
       applications    = contains(r.service, "any") ? ["ANY"] : [for t in r.service : trimprefix(t, "app:") if startswith(t, "app:")]
       svc_group_names = contains(r.service, "any") ? [] : [for t in r.service : trimprefix(t, "svcgroup:") if startswith(t, "svcgroup:")]
@@ -176,9 +179,8 @@ locals {
 }
 
 locals {
-  # Catch-all rules (deny + source/destination/service all 'any') are split out
-  # and created AFTER every other rule: bottom-pinned rules land in creation
-  # order, and a deny-all that races above an allow would shadow it.
+  # Catch-all rule separation
+  # Note: Create deny-all rules after regular rules to avoid shadowing allows.
   acl_catchall = { for k, v in local.acl_parsed : k => v if v.action == 1 && v.src_any && v.dst_any && v.service_any }
   acl_regular  = { for k, v in local.acl_parsed : k => v if !(v.action == 1 && v.src_any && v.dst_any && v.service_any) }
 }
@@ -211,9 +213,7 @@ resource "huaweicloud_cfw_acl_rule" "this" {
   dynamic "custom_services" {
     for_each = each.value.inline_services
     content {
-      # icmp is portless: the API stores no ports and the provider schema
-      # still requires the attributes, so send "" (what a refresh writes to
-      # state for an absent value) - a port range here drifts on every refresh
+      # Note: ICMP uses empty port attributes to avoid recurring drift.
       protocol    = local.proto_num[split("/", custom_services.value)[0]]
       source_port = split("/", custom_services.value)[0] == "icmp" ? "" : (split("/", custom_services.value)[1] == "any" ? "1-65535" : split("/", custom_services.value)[1])
       dest_port   = split("/", custom_services.value)[0] == "icmp" ? "" : (split("/", custom_services.value)[2] == "any" ? "1-65535" : split("/", custom_services.value)[2])
@@ -228,22 +228,21 @@ resource "huaweicloud_cfw_acl_rule" "this" {
     }
   }
 
-  # Pin to bottom; rules land in creation order (reorder in the console if
-  # precedence matters).
+  # Rule placement
+  # Note: Bottom-pinned rules follow creation order; adjust precedence in the console.
   sequence {
     top    = 0
     bottom = 1
   }
 }
 
-# Tracks the SET of regular-rule ids: changes on create/replace (a rule can
-# land below the catch-alls then), stays put on in-place updates.
+# --- Regular-rule replacement tracking ---
 resource "terraform_data" "rule_ids" {
   input = sort([for r in huaweicloud_cfw_acl_rule.this : r.id])
 }
 
-# Catch-all denies: same bottom pin, but depends_on guarantees they are created
-# after every regular rule and therefore sit at the very bottom of the list.
+# --- Catch-all deny rules ---
+# Note: Dependencies keep catch-all rules below regular rules.
 resource "huaweicloud_cfw_acl_rule" "catchall" {
   for_each = local.acl_catchall
 
@@ -268,14 +267,13 @@ resource "huaweicloud_cfw_acl_rule" "catchall" {
 
   depends_on = [huaweicloud_cfw_acl_rule.this]
 
-  # Re-anchor the denies to the bottom whenever a rule is created or
-  # replaced; in-place updates do not churn them.
+  # Note: Re-anchor catch-all rules after regular-rule creation or replacement.
   lifecycle {
     replace_triggered_by = [terraform_data.rule_ids]
   }
 }
 
-# ---- Black / white lists ----
+# --- Blocklists and allowlists ---
 
 resource "huaweicloud_cfw_black_white_list" "this" {
   for_each = { for i, b in var.black_white_lists : "${b.list_type}-${i}-${b.address}" => b }

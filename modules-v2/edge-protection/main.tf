@@ -1,3 +1,5 @@
+# --- Provider requirements ---
+
 terraform {
   required_version = ">= 1.6.3"
   required_providers {
@@ -5,9 +7,9 @@ terraform {
   }
 }
 
-# ---- Basic Anti-DDoS (per-EIP traffic-cleaning threshold + optional SMN alarm) ----
+# --- Basic Anti-DDoS protection ---
 
-# Resolve alarm-topic NAMES to URNs (one lookup per distinct topic).
+# --- Alarm topic lookup ---
 data "huaweicloud_smn_topics" "alarm" {
   for_each = toset([for a in var.antiddos : a.alarm_topic if a.alarm_topic != ""])
 
@@ -29,10 +31,9 @@ resource "huaweicloud_antiddos_basic" "this" {
   topic_urn         = each.value.alarm_topic != "" ? data.huaweicloud_smn_topics.alarm[each.value.alarm_topic].topics[0].topic_urn : null
 }
 
-# ---- Dedicated WAF instance + shared policy + protected domains ----
+# --- Dedicated WAF protection ---
 
-# Auto-select the engine ECS flavor when not pinned: professional needs 2U4G,
-# enterprise needs 8U16G (provider docs requirement).
+# --- WAF instance flavor selection ---
 data "huaweicloud_compute_flavors" "waf" {
   count = var.enable_waf && var.waf_ecs_flavor == "" ? 1 : 0
 
@@ -42,8 +43,7 @@ data "huaweicloud_compute_flavors" "waf" {
   memory_size       = var.waf_specification_code == "waf.instance.enterprise" ? 16 : 4
 }
 
-# Own security group when none is supplied: WAF terminates HTTP/S and forwards
-# to the origin, so 80/443 in + all out covers the engine.
+# --- Default WAF security group ---
 resource "huaweicloud_networking_secgroup" "waf" {
   count = var.enable_waf && length(var.waf_security_group_ids) == 0 ? 1 : 0
 
@@ -92,7 +92,7 @@ resource "huaweicloud_waf_policy" "this" {
   name                  = var.waf_policy_name
   enterprise_project_id = var.enterprise_project_id
 
-  # The dedicated domains only take effect once the instance exists.
+  # Note: Protected domains depend on the WAF instance.
   depends_on = [huaweicloud_waf_dedicated_instance.this]
 }
 

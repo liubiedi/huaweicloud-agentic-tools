@@ -1,34 +1,18 @@
-# The 8 Landing Zone identity guardrails - authored as v5.0 SCP statements.
-#
-# Huawei caps attached SCPs at 5 per entity (the default FullAccess takes one),
-# so the guardrails are NOT one-SCP-each. Each guardrail is a single Deny
-# *statement*, and statements are packed into combined SCP documents (each well
-# under the 5,120-char limit). enforce = true statements go into the attached
-# (LIVE) document(s); enforce = false ones into a staged, unattached document.
-#
-# Statement bodies validated against the identity guardrails workbook and
-# https://support.huaweicloud.com/intl/en-us/usermanual-organizations/org_03_0081.html
+# --- Service control policies ---
+# Note: Guardrails are packed into documents to respect attachment and size limits.
 
 locals {
   _scps = var.scps
 
-  # Allowed org path for the cross-org guardrails (#3 RAM, #4 RMS), derived from
-  # foundation as '<org_id>/<root_ou_id>/*' (a policy may override via allowed_org_path).
-  #
-  # Both guardrails use StringNotMatch - the Huawei IAM v5 string operator where
-  # '*'/'?' are real wildcards - so the trailing '*' matches every org path beneath
-  # the root (and denies anything outside it). Do NOT switch these to StringNotLike:
-  # that operator does case-insensitive SUBSTRING matching and does NOT treat '*' as
-  # a wildcard, so a '*'-terminated path is matched literally and denies EVERY share
-  # (no real ram:TargetOrgPaths contains a literal '*'). Verified working in-org with
-  # StringNotMatch + '<org_id>/<root_ou_id>/*'.
+  # Allowed organization path
+  # Note: StringNotMatch treats the trailing * as a wildcard; StringNotLike does not.
   _org_path     = var.org_id != "" && var.root_ou_id != "" ? "${var.org_id}/${var.root_ou_id}/*" : ""
   _ram_org_path = local._scps.deny_unauthorized_ram_share.allowed_org_path != "" ? local._scps.deny_unauthorized_ram_share.allowed_org_path : local._org_path
   _rms_org_path = local._scps.deny_unauthorized_rms_aggregation.allowed_org_path != "" ? local._scps.deny_unauthorized_rms_aggregation.allowed_org_path : local._org_path
 
-  # ---- Per-guardrail Deny statements (objects, combined into documents below) ----
+  # Guardrail statements
 
-  # 1. Deny leaving the organization.
+  # Organization membership protection
   stmt_deny_leave_org = {
     Sid      = "DenyLeaveOrganization"
     Effect   = "Deny"
@@ -36,11 +20,8 @@ locals {
     Resource = ["*"]
   }
 
-  # 2. Deny root user usage. Service names can't be wildcarded, so enumerate.
-  # Use Bool (NOT BoolIfExists): with IfExists, an ABSENT g:PrincipalIsRootUser
-  # (the case for ordinary non-root member-account users) is treated as a match,
-  # so the Deny fires and blocks every enumerated service for non-root users. Bool
-  # denies only when the key is explicitly "true" (the actual root user).
+  # Root user restriction
+  # Note: Bool avoids matching non-root requests where the principal flag is absent.
   stmt_deny_root_user = {
     Sid      = "DenyRootUserAllActions"
     Effect   = "Deny"
@@ -51,7 +32,7 @@ locals {
     }
   }
 
-  # 3. Deny RAM resource shares to unauthorized organizations.
+  # RAM organization boundary
   stmt_deny_unauthorized_ram_share = {
     Sid      = "DenyRamShareToUnauthorizedOrg"
     Effect   = "Deny"
@@ -62,7 +43,7 @@ locals {
     }
   }
 
-  # 4. Deny RMS aggregation authorization from unauthorized organizations.
+  # Config organization boundary
   stmt_deny_unauthorized_rms_aggregation = {
     Sid      = "DenyRmsAggregationFromUnauthorizedOrg"
     Effect   = "Deny"
@@ -73,17 +54,8 @@ locals {
     }
   }
 
-  # 5. Deny resource create/update without mandatory tags. ONE Deny statement PER
-  # mandatory tag - NOT a single multi-key Null block.
-  #
-  # Huawei ANDs multiple keys within one condition operator block (org_03_0033:
-  # "the policy can be applied only when all the conditions are met"), so a single
-  # Null block listing all tags would deny only when EVERY tag is absent - a
-  # partially-tagged create (e.g. just `bu`) would slip through. Separate Deny
-  # statements are OR-ed at the policy level, so a deny fires if ANY one tag is
-  # missing. Null = "key is absent"; it takes NO qualifier - `ForAnyValue:Null`
-  # (the old, stale deployed form) is invalid, and IfExists is not allowed on Null.
-  # Produces a map of { key => statement } spread into scp_all below.
+  # Mandatory tag enforcement
+  # Note: Use one Deny per tag; a combined Null condition would require all tags to be absent.
   stmt_require_mandatory_tags = {
     for t in local._scps.require_mandatory_tags.mandatory_tags :
     "require_mandatory_tag_${t}" => {
@@ -97,12 +69,8 @@ locals {
     }
   }
 
-  # 6. Deny public OBS unless exception-tagged. exception_tag_key = "" => no exception.
-  # Use StringEquals (NOT StringEqualsIfExists) on obs:x-obs-acl: with IfExists, a
-  # bucket create that doesn't send an x-obs-acl header (a normal PRIVATE bucket)
-  # has the key ABSENT, which IfExists treats as a match - so it wrongly denies all
-  # private bucket creation. StringEquals denies only when the ACL is explicitly
-  # public.
+  # Public bucket restriction
+  # Note: StringEquals avoids denying private bucket requests with no ACL header.
   stmt_deny_public_obs = {
     Sid      = "DenyPublicObsUnlessExceptionTagged"
     Effect   = "Deny"
@@ -118,8 +86,8 @@ locals {
     )
   }
 
-  # 7. Protect the default CTS tracker. admin_principal_urns = [] => unconditional
-  # (the Condition key is omitted entirely).
+  # CTS tracker protection
+  # Note: An empty administrator list makes protection unconditional.
   stmt_protect_cts_tracker = merge(
     {
       Sid      = "ProtectDefaultCtsTracker"
@@ -132,7 +100,7 @@ locals {
     } : {}
   )
 
-  # 8. Deny resource creation outside the allowed region(s). Enumerate services.
+  # Allowed region enforcement
   stmt_deny_outside_allowed_region = {
     Sid      = "DenyResourceOutsideAllowedRegion"
     Effect   = "Deny"
@@ -143,12 +111,8 @@ locals {
     }
   }
 
-  # 9. Deny create actions unless the request carries approved tag keys. Actions
-  # are enumerated (no wildcard service). g:TagKeys is CASE-SENSITIVE - tag_keys
-  # are passed through exactly as entered in the sheet-01 TagPolicies.
-  # g:TagKeys is multi-valued, so a ForAllValues/ForAnyValue qualifier is REQUIRED
-  # (MISSING_QUALIFIER otherwise). ForAnyValue:StringNotEquals = deny if ANY request
-  # tag key is outside the approved set (an allowlist of tag keys).
+  # Approved tag keys
+  # Note: Case-sensitive, multivalued g:TagKeys requires ForAnyValue:StringNotEquals.
   stmt_require_tag_keys = {
     Sid      = "DenyCreateWithUnapprovedTagKeys"
     Effect   = "Deny"
@@ -159,8 +123,7 @@ locals {
     }
   }
 
-  # Assemble enabled guardrails into { key => { stmt, enforce } }. Built
-  # explicitly per policy because var.scps is an object (no dynamic key indexing).
+  # Enabled guardrail collection
   scp_all = merge(
     var.enable_scps && local._scps.deny_leave_org.enabled ? { deny_leave_org = { stmt = local.stmt_deny_leave_org, enforce = local._scps.deny_leave_org.enforce } } : {},
     var.enable_scps && local._scps.deny_root_user.enabled ? { deny_root_user = { stmt = local.stmt_deny_root_user, enforce = local._scps.deny_root_user.enforce } } : {},
@@ -176,16 +139,8 @@ locals {
     var.enable_scps && local._scps.require_tag_keys.enabled && length(local._scps.require_tag_keys.tag_keys) > 0 ? { require_tag_keys = { stmt = local.stmt_require_tag_keys, enforce = local._scps.require_tag_keys.enforce } } : {},
   )
 
-  # Huawei caps attached SCPs at 5 per entity (the default FullAccess takes one),
-  # so guardrails are packed into combined documents rather than one-SCP-each.
-  # enforce = true statements go into the attached (LIVE) document(s); enforce =
-  # false ones into a staged, unattached document. Each document holds up to
-  # max_statements_per_scp statements and stays under the 5,120-char limit.
-  #
-  # The tag-governance guardrails (the `require_*` keys - the per-tag mandatory-tag
-  # statements and require_tag_keys) are grouped into their OWN dedicated document
-  # (var.tag_policy_name) so the tag policy is self-contained and separately named;
-  # every other guardrail goes into the general var.policy_name document(s).
+  # Enforced and staged policy groups
+  # Note: Tag guardrails use dedicated documents named by tag_policy_name.
   _tag_scp_all  = { for k, v in local.scp_all : k => v if startswith(k, "require_") }
   _main_scp_all = { for k, v in local.scp_all : k => v if !startswith(k, "require_") }
 
@@ -195,9 +150,8 @@ locals {
   tag_enforced_stmts = [for k, v in local._tag_scp_all : v.stmt if v.enforce]
   tag_staged_stmts   = [for k, v in local._tag_scp_all : v.stmt if !v.enforce]
 
-  # NB: chunklist() can't be used here - the statement objects are heterogeneous
-  # (some carry a Condition, some don't), so they form a tuple, not a list.
-  # range()+slice() chunk a tuple while preserving the per-element types.
+  # Policy statement batching
+  # Note: range and slice preserve heterogeneous tuple types.
   enforced_chunks = [
     for i in range(0, length(local.enforced_stmts), var.max_statements_per_scp) :
     slice(local.enforced_stmts, i, min(i + var.max_statements_per_scp, length(local.enforced_stmts)))
@@ -216,7 +170,7 @@ locals {
   ]
 }
 
-# ---- Enforced (LIVE) - combined SCP document(s), attached at attach_target_id. ----
+# --- Enforced policies and attachments ---
 
 resource "huaweicloud_organizations_policy" "enforced" {
   count = length(local.enforced_chunks)
@@ -235,7 +189,8 @@ resource "huaweicloud_organizations_policy_attach" "enforced" {
   entity_id = var.attach_target_id
 }
 
-# ---- Staged (INERT) - combined SCP document(s), created but NOT attached. ----
+# --- Staged policies ---
+# Note: Created without attachments.
 
 resource "huaweicloud_organizations_policy" "staged" {
   count = length(local.staged_chunks)
@@ -247,9 +202,7 @@ resource "huaweicloud_organizations_policy" "staged" {
   tags        = var.tags
 }
 
-# Tag guardrails - dedicated SCP document(s) for the tag-governance policies
-# (mandatory tags + approved tag keys). Named var.tag_policy_name (no numeric
-# suffix unless they overflow a single document). Enforced ones are attached.
+# --- Tag governance policies ---
 
 resource "huaweicloud_organizations_policy" "tag_enforced" {
   count = length(local.tag_enforced_chunks)

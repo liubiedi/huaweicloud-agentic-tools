@@ -1,3 +1,5 @@
+# --- Provider requirements ---
+
 terraform {
   required_version = ">= 1.6.3"
   required_providers {
@@ -5,7 +7,7 @@ terraform {
   }
 }
 
-# ---- DNS zones (public + private) ----
+# --- Public and private zones ---
 
 resource "huaweicloud_dns_zone" "public" {
   for_each = { for z in var.public_zones : z.name => z }
@@ -28,8 +30,8 @@ resource "huaweicloud_dns_zone" "private" {
   enterprise_project_id = var.enterprise_project_id
   proxy_pattern         = each.value.recursive ? "RECURSIVE" : "AUTHORITY"
 
-  # The first VPC is the zone's primary router; the rest are attached below via
-  # huaweicloud_dns_private_zone_associate (a private zone needs >=1 router).
+  # Primary VPC association
+  # Note: Private zones require at least one VPC.
   dynamic "router" {
     for_each = length(each.value.vpcs) > 0 ? [each.value.vpcs[0]] : []
     content {
@@ -38,7 +40,7 @@ resource "huaweicloud_dns_zone" "private" {
   }
 }
 
-# Additional VPC associations (every VPC after the first in each private zone).
+# --- Additional VPC associations ---
 locals {
   private_zone_extra_assoc = merge([
     for z in var.private_zones : {
@@ -60,7 +62,7 @@ resource "huaweicloud_dns_private_zone_associate" "this" {
   router_id = var.vpc_ids[each.value.vpc]
 }
 
-# ---- Record sets ----
+# --- DNS record sets ---
 
 resource "huaweicloud_dns_recordset" "this" {
   for_each = { for r in var.recordsets : "${r.zone}__${r.name}__${r.type}" => r }
@@ -73,13 +75,11 @@ resource "huaweicloud_dns_recordset" "this" {
   description = each.value.description
 }
 
-# ---- Resolver endpoints (inbound + outbound) ----
+# --- Resolver endpoints ---
 
 locals {
-  # One ip_addresses block per resolver IP (Huawei requires >=2). Blocks = the larger
-  # of subnets vs ips: with more IPs than subnets the extra IPs reuse subnets by
-  # cycling (so "2 IPs in 1 subnet" works, per the provider's own examples); with no
-  # fixed IPs, one block per subnet (IP auto-assigned).
+  # Resolver IP allocation
+  # Note: At least two IPs are required; additional IPs cycle through available subnets.
   endpoint_ips = {
     for e in var.resolver_endpoints : e.name => [
       for idx in range(max(length(e.subnets), length(e.ips))) : {
@@ -105,7 +105,7 @@ resource "huaweicloud_dns_endpoint" "this" {
   }
 }
 
-# ---- Outbound forwarding rules + VPC associations ----
+# --- Outbound forwarding rules ---
 
 resource "huaweicloud_dns_resolver_rule" "this" {
   for_each = { for r in var.resolver_rules : r.name => r }
@@ -137,11 +137,8 @@ resource "huaweicloud_dns_resolver_rule_associate" "this" {
   vpc_id           = var.vpc_ids[each.value.vpc]
 }
 
-# ---- DNS query access logging (to LTS) ----
-# A resolver access log needs an existing LTS group + stream. By default the
-# module creates them. With manage_query_log_infra = false it looks them up by
-# name instead - used when the observability environment owns the log infra,
-# so a fresh sequential deploy works strictly in numeric order.
+# --- DNS query logging ---
+# Note: manage_query_log_infra selects locally created or existing LTS infrastructure.
 
 locals {
   lts_group_names = distinct([for a in var.access_logs : a.lts_group])
@@ -164,7 +161,7 @@ resource "huaweicloud_lts_stream" "dns" {
   enterprise_project_id = var.enterprise_project_id
 }
 
-# External infra mode: resolve the same names to IDs.
+# --- Existing LTS destinations ---
 data "huaweicloud_lts_groups" "dns" {
   count = !var.manage_query_log_infra && length(var.access_logs) > 0 ? 1 : 0
 }

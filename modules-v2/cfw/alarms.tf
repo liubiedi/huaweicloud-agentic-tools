@@ -1,6 +1,5 @@
-# Firewall alarm notifications -> SMN topic (one config per alarm type).
-# Types: 0 attack, 1 traffic threshold (severity 1 = 80%), 2 EIP unprotected,
-# 3 threat intelligence. alarm_time_period 1 = all day.
+# --- Firewall alarm notifications ---
+# Note: Alarm types: 0 attack, 1 traffic, 2 unprotected EIP, 3 threat intelligence.
 
 locals {
   alarms = merge(
@@ -19,7 +18,7 @@ locals {
   )
 }
 
-# Resolve the alarm-topic NAME to a URN in the CFW account.
+# --- Alarm topic lookup ---
 data "huaweicloud_smn_topics" "alarm" {
   count = length(local.alarms) > 0 ? 1 : 0
 

@@ -1,5 +1,4 @@
-# Unified financial management
-# Two halves: multi-EP master + per-account TMS tagging.
+# --- Financial management inputs ---
 
 variable "environment" {
   type    = string
@@ -10,7 +9,7 @@ variable "tags" {
   default = {}
 }
 
-# ---- Section toggles ----
+# --- Feature switches ---
 
 variable "enable_multi_ep" {
   type    = bool
@@ -25,7 +24,7 @@ variable "enable_bulk_tag_resources" {
   default = false
 }
 
-# ---- Multi-EP (master half) ----
+# --- Enterprise projects ---
 
 variable "cost_centers" {
   type = map(object({
@@ -36,7 +35,7 @@ variable "cost_centers" {
   description = "Map of cost-center EP name -> config. Additive to module 1's single bootstrap EP."
 }
 
-# ---- TMS predefined tags (per-account) ----
+# --- Predefined tags ---
 
 variable "predefined_tags" {
   type = list(object({
@@ -52,7 +51,7 @@ variable "predefined_tags" {
   description = "Canonical predefined tag dictionary. Values list can be empty for free-form values."
 }
 
-# ---- TMS bulk tag application (per-account, optional) ----
+# --- Bulk resource tags ---
 
 variable "bulk_tag_targets" {
   type = list(object({

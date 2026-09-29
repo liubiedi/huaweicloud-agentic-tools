@@ -1,5 +1,4 @@
-# Unified O&M monitoring
-# Lives in lz-infra (same account as module 6). SMN central topic + CES one-click.
+# --- Monitoring inputs ---
 
 variable "environment" {
   type    = string
@@ -16,7 +15,7 @@ variable "account_name" {
   description = "Account this ops module instance deploys into. Substituted for the {account-name} token in topic_name."
 }
 
-# ---- SMN ----
+# --- Notification inputs ---
 
 variable "topic_name" {
   type    = string
@@ -25,7 +24,8 @@ variable "topic_name" {
 
 variable "subscribers" {
   type = list(object({
-    protocol = string # email, sms, http, https, functionstage, callnotify, dms
+    # Supported notification protocols
+    protocol = string
     endpoint = string
   }))
   default     = []
@@ -43,7 +43,7 @@ variable "smn_lts_stream_id" {
   default = ""
 }
 
-# ---- CES one-click alarms ----
+# --- One-click alarm inputs ---
 
 variable "one_click_alarms" {
   type = list(object({
@@ -59,7 +59,7 @@ variable "custom_alarm_rules" {
   default = []
 }
 
-# ---- AOM / FGS (default off) ----
+# --- Optional AOM and FunctionGraph inputs ---
 
 variable "enable_aom" {
   type    = bool

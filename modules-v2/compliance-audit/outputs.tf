@@ -1,3 +1,5 @@
+# --- Audit outputs ---
+
 output "audit_bucket_name" { value = huaweicloud_obs_bucket.audit.bucket }
 output "audit_bucket_id" { value = huaweicloud_obs_bucket.audit.id }
 

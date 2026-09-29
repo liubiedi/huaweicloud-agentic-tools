@@ -1,6 +1,4 @@
-# Unified compliance audit
-# Lives in logging account (lz-infra). Owns: org CTS tracker + 3 OBS buckets +
-# log-infra KMS + LTS infrastructure.
+# --- Audit inputs ---
 
 variable "environment" {
   type    = string
@@ -17,8 +15,8 @@ variable "account_name" {
   description = "Account this central audit module deploys into (the CTS delegated admin). Substituted for the {account-name} token in the bucket / KMS / CTS log-group / stream names below."
 }
 
-# Explicit, required names. OBS bucket names must be globally unique across all
-# of Huawei Cloud, so there is no safe default/fallback - each must be provided.
+# --- Bucket names and key aliases ---
+# Note: OBS bucket names must be globally unique.
 variable "audit_bucket_name" {
   type        = string
   description = "Name for the CTS audit OBS bucket (globally unique)."
@@ -44,7 +42,7 @@ variable "member_account_ids" {
   description = "All created account IDs (from module 1's accounts output). Used for cross-account bucket policies + LTS cross_account_access."
 }
 
-# ---- Retention ----
+# --- Retention settings ---
 
 variable "audit_cold_after_days" {
   type        = number
@@ -56,19 +54,17 @@ variable "audit_retention_days" {
   type    = number
   default = 365
 }
-# ---- KMS ----
+# --- Encryption settings ---
 
 variable "kms_pending_days" {
-  type    = number
-  default = 7 # production typically uses 30
+  type = number
+  # Key deletion waiting period
+  default = 7
 }
 
-# ---- CTS extensions (default off) ----
+# --- CTS extensions ---
 
-# Key-event notifications on the org tracker: each entry is one notification
-# (customized operation type) whose operations blocks list the (service,
-# resource, trace names) triples that fire it. All entries publish to
-# cts_notification_topic_urn (the CTS-admin account's ops SMN topic).
+# --- Key-event notifications ---
 variable "cts_notifications" {
   type = list(object({
     name        = string

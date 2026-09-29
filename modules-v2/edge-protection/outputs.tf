@@ -1,3 +1,5 @@
+# --- Edge protection outputs ---
+
 output "antiddos_ids" {
   description = "Anti-DDoS row NAME -> resource ID."
   value       = { for k, v in huaweicloud_antiddos_basic.this : k => v.id }

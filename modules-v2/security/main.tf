@@ -1,3 +1,5 @@
+# --- Provider requirements ---
+
 terraform {
   required_version = ">= 1.6.3"
   required_providers {
@@ -5,6 +7,5 @@ terraform {
   }
 }
 
-# Security (SecMaster + deferred HSS/DBSS).
-# Resources live in secmaster.tf, hss.tf, dbss.tf. Tagging is provider-level
-# (default_tags) only - modules inject no tags of their own.
+# --- Security module ---
+# Note: Tagging is provider-level through default_tags; the module adds none.

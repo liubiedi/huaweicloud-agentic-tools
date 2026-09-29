@@ -1,5 +1,5 @@
-# Unified security protection
-# Lives in the security account. SecMaster Pattern C (security-only) by default.
+# --- Security inputs ---
+# Note: Resources are created in the security account.
 
 variable "environment" {
   type    = string
@@ -10,7 +10,7 @@ variable "tags" {
   default = {}
 }
 
-# ---- SecMaster ----
+# --- SecMaster ---
 
 variable "enable_secmaster" {
   type    = bool
@@ -57,7 +57,7 @@ variable "alert_rules" {
   description = "Baseline SecMaster detection rules. Empty default; populate per security baseline."
 }
 
-# ---- HSS (deferred - default off) ----
+# --- HSS (default off) ---
 
 variable "enable_hss" {
   type    = bool
@@ -76,7 +76,7 @@ variable "hss_policy_groups" {
   default = []
 }
 
-# ---- DBSS (deferred - default off) ----
+# --- DBSS (default off) ---
 
 variable "enable_dbss" {
   type    = bool
@@ -87,7 +87,7 @@ variable "dbss_specs" {
   default = {}
 }
 
-# ---- Future Pattern B upgrade (deferred - default off) ----
+# --- View workspace (default off) ---
 
 variable "enable_member_workspaces" {
   type    = bool

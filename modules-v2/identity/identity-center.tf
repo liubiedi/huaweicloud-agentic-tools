@@ -1,13 +1,9 @@
-# Identity Center workforce content.
-#
-# Gated by var.enable_identity_center_content. Some argument names differ
-# from the Huawei docs; trust the provider schema.
+# --- Identity Center content ---
 
 locals {
   ic_enabled = var.enable_identity_center_content
 
-  # Callers may pass null for these (no groups/users configured); coalesce so
-  # the for-expressions below never iterate a null value.
+  # Identity input defaults
   _groups = var.groups == null ? [] : var.groups
   _users  = var.users == null ? [] : var.users
 
@@ -21,14 +17,12 @@ locals {
     ]
   ]) : []
 
-  # All unique system-policy display names referenced by the permission sets.
-  # Sheet holds friendly names ("BSS Administrator"); the IC attach-managed-role
-  # API needs the policy ID, so we resolve name -> id via a data source below.
+  # System policy names
   all_system_policy_names = local.ic_enabled ? toset(flatten([
     for ps_name, ps in var.permission_sets : ps.system_policies
   ])) : toset([])
 
-  # name -> policy ID (exact-name match from the IAM permissions catalog).
+  # System policy ID lookup
   system_policy_id = {
     for name in local.all_system_policy_names :
     name => one([
@@ -37,7 +31,7 @@ locals {
     ])
   }
 
-  # PS -> list of system policy IDs (one attachment per PS holds the SET)
+  # Permission-set policy mappings
   ps_to_system_policies = local.ic_enabled ? {
     for ps_name, ps in var.permission_sets :
     ps_name => [for n in ps.system_policies : local.system_policy_id[n]]
@@ -50,7 +44,7 @@ locals {
   } : {}
 }
 
-# Resolve each system-policy display name to its IAM policy ID.
+# --- IAM policy catalog ---
 data "huaweicloud_identity_permissions" "system" {
   for_each = local.all_system_policy_names
 
@@ -58,7 +52,7 @@ data "huaweicloud_identity_permissions" "system" {
   type = "system"
 }
 
-# ---- Groups ----
+# --- Identity groups ---
 
 resource "huaweicloud_identitycenter_group" "this" {
   for_each = local.ic_enabled ? { for g in local._groups : g.name => g } : {}
@@ -68,10 +62,7 @@ resource "huaweicloud_identitycenter_group" "this" {
   description       = each.value.description
 }
 
-# ---- Users ----
-#
-# In the provider schema, family_name, given_name, email, password_mode are
-# top-level Required args (NOT nested in name/emails blocks).
+# --- Identity users ---
 
 resource "huaweicloud_identitycenter_user" "this" {
   for_each = local.ic_enabled ? { for u in local._users : u.user_name => u } : {}
@@ -82,10 +73,11 @@ resource "huaweicloud_identitycenter_user" "this" {
   family_name       = each.value.family_name
   given_name        = each.value.given_name
   email             = each.value.email
-  password_mode     = "EMAIL" # send password setup email to user
+  # Password setup delivery
+  password_mode = "EMAIL"
 }
 
-# ---- Group memberships ----
+# --- Group memberships ---
 
 resource "huaweicloud_identitycenter_group_membership" "this" {
   for_each = local.ic_enabled ? { for m in local.group_memberships : m.key => m } : {}
@@ -95,7 +87,7 @@ resource "huaweicloud_identitycenter_group_membership" "this" {
   member_id         = huaweicloud_identitycenter_user.this[each.value.user_name].id
 }
 
-# ---- Permission sets ----
+# --- Permission sets ---
 
 resource "huaweicloud_identitycenter_permission_set" "this" {
   for_each = local.ic_enabled ? var.permission_sets : {}
@@ -106,7 +98,7 @@ resource "huaweicloud_identitycenter_permission_set" "this" {
   session_duration = each.value.session_duration
 }
 
-# System (v2012) policy attachments - one resource per PS, holds a SET of policy IDs
+# --- System policy attachments ---
 resource "huaweicloud_identitycenter_system_policy_attachment" "this" {
   for_each = local.ic_enabled ? local.ps_to_system_policies : {}
 
@@ -115,7 +107,7 @@ resource "huaweicloud_identitycenter_system_policy_attachment" "this" {
   policy_ids        = each.value
 }
 
-# System identity (v5) policy attachments
+# --- Identity policy attachments ---
 resource "huaweicloud_identitycenter_system_identity_policy_attachment" "this" {
   for_each = local.ic_enabled ? local.ps_to_v5_policies : {}
 
@@ -124,7 +116,7 @@ resource "huaweicloud_identitycenter_system_identity_policy_attachment" "this" {
   policy_ids        = each.value
 }
 
-# ---- Account assignments ----
+# --- Account assignments ---
 
 resource "huaweicloud_identitycenter_account_assignment" "this" {
   for_each = local.ic_enabled ? {
@@ -140,14 +132,13 @@ resource "huaweicloud_identitycenter_account_assignment" "this" {
   target_type       = "ACCOUNT"
 }
 
-# ---- Permission set provisioning (push PS to target account) ----
-# One resource per (account, PS) pair.
+# --- Permission-set provisioning ---
 
 resource "huaweicloud_identitycenter_provision_permission_set" "this" {
   for_each = local.ic_enabled ? {
     for a in var.account_assignments :
     "${a.account_id}__${a.permission_set}" => a
-    # Dedupe in case multiple groups bind to the same PS in the same account
+    # Unique account and permission-set pairs
   } : {}
 
   instance_id       = var.identity_center_instance_id
@@ -157,33 +148,32 @@ resource "huaweicloud_identitycenter_provision_permission_set" "this" {
   depends_on = [huaweicloud_identitycenter_account_assignment.this]
 }
 
-# ---- IC password policy ----
+# --- Identity Center password policy ---
 
 resource "huaweicloud_identitycenter_password_policy" "this" {
   count = local.ic_enabled ? 1 : 0
 
-  identity_store_id            = var.identity_store_id
-  minimum_password_length      = lookup(var.ic_password_policy, "min_password_length", 12)
-  max_password_age             = lookup(var.ic_password_policy, "password_max_age_days", 90)
-  password_reuse_prevention    = lookup(var.ic_password_policy, "password_reuse_prevention", 1) # IC max is 1
+  identity_store_id       = var.identity_store_id
+  minimum_password_length = lookup(var.ic_password_policy, "min_password_length", 12)
+  max_password_age        = lookup(var.ic_password_policy, "password_max_age_days", 90)
+  # Note: Identity Center allows a maximum of 1.
+  password_reuse_prevention    = lookup(var.ic_password_policy, "password_reuse_prevention", 1)
   require_uppercase_characters = lookup(var.ic_password_policy, "require_uppercase", true)
   require_lowercase_characters = lookup(var.ic_password_policy, "require_lowercase", true)
   require_numbers              = lookup(var.ic_password_policy, "require_numbers", true)
   require_symbols              = lookup(var.ic_password_policy, "require_symbols", true)
 }
 
-# ---- IC MFA management ----
+# --- Identity Center MFA policy ---
 
 resource "huaweicloud_identitycenter_mfa_management_setting" "this" {
   count = local.ic_enabled ? 1 : 0
 
   instance_id       = var.identity_center_instance_id
   identity_store_id = var.identity_store_id
-  # Valid values: READ_ACTIONS | ALL_ACTIONS (controls users' MFA self-management).
+  # MFA self-management scope
   user_permission = lookup(var.ic_mfa_management, "user_permission", "ALL_ACTIONS")
 }
 
-# ---- IC registered regions ----
-# Region registration is owned by module 1 (it must run before the IC instance
-# starts). Registering it again here conflicts ("already registered"), so it is
-# intentionally not managed in this module.
+# --- Region registration ownership ---
+# Note: 01-foundation registers regions before starting Identity Center.

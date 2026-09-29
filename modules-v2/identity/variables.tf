@@ -1,12 +1,4 @@
-# Identity and permission management
-#
-# Two halves controlled by enable_* flags:
-#   - enable_identity_center_content : run once in master (IC users/groups/PS)
-#   - enable_iam_baseline            : run per-account (IAM hardening + agencies)
-#
-# When called per-account, set enable_iam_baseline = true and leave
-# enable_identity_center_content = false. The env layer calls this module
-# multiple times with different provider aliases and different enable flags.
+# --- Identity inputs ---
 
 variable "environment" {
   type        = string
@@ -20,7 +12,7 @@ variable "tags" {
   description = "Extra tags merged into the module's standard tag set"
 }
 
-# ---- Section toggles ----
+# --- Feature switches ---
 
 variable "enable_identity_center_content" {
   type        = bool
@@ -34,7 +26,7 @@ variable "enable_iam_baseline" {
   description = "Apply per-account IAM baseline (password/login/protection policies + service agencies). Run in each account via provider alias."
 }
 
-# ---- Identity Center content inputs ----
+# --- Identity Center content ---
 
 variable "identity_store_id" {
   type        = string
@@ -84,10 +76,12 @@ variable "users" {
 
 variable "permission_sets" {
   type = map(object({
-    description              = string
-    session_duration         = optional(string, "PT8H")
-    system_policies          = optional(list(string), []) # v2012 system policy names
-    system_identity_policies = optional(list(string), []) # v5 system identity policy names
+    description      = string
+    session_duration = optional(string, "PT8H")
+    # System policy names (v2012)
+    system_policies = optional(list(string), [])
+    # Identity policy names (v5)
+    system_identity_policies = optional(list(string), [])
   }))
   default = {
     LzAdministrator = {
@@ -130,17 +124,18 @@ variable "registered_regions" {
   description = "Regions where Identity Center can issue session credentials."
 }
 
-# ---- Identity Center hardening ----
+# --- Identity Center policies ---
 
 variable "ic_password_policy" {
   type = object({
-    min_password_length       = optional(number, 12)
-    require_uppercase         = optional(bool, true)
-    require_lowercase         = optional(bool, true)
-    require_numbers           = optional(bool, true)
-    require_symbols           = optional(bool, true)
-    password_max_age_days     = optional(number, 90)
-    password_reuse_prevention = optional(number, 1) # IC hard limit: must be <= 1
+    min_password_length   = optional(number, 12)
+    require_uppercase     = optional(bool, true)
+    require_lowercase     = optional(bool, true)
+    require_numbers       = optional(bool, true)
+    require_symbols       = optional(bool, true)
+    password_max_age_days = optional(number, 90)
+    # Note: Identity Center allows a maximum of 1.
+    password_reuse_prevention = optional(number, 1)
   })
   default     = {}
   description = "IC instance-wide password policy. Applied when enable_identity_center_content = true."
@@ -156,7 +151,7 @@ variable "ic_mfa_management" {
   description = "IC MFA management settings."
 }
 
-# ---- Per-account IAM baseline ----
+# --- Account IAM baseline ---
 
 variable "iam_password_policy" {
   type = object({
@@ -197,13 +192,16 @@ variable "iam_protection_policy" {
 
 variable "service_agencies" {
   type = list(object({
-    name              = string
-    description       = optional(string, "")
-    delegated_service = string                     # e.g. "service.CTS"
-    policies          = optional(list(string), []) # system policy names
-    all_resources     = optional(bool, true)
-    duration          = optional(string, "FOREVER")
-    project_name      = optional(string, "") # required if all_resources = false
+    name        = string
+    description = optional(string, "")
+    # Delegated service principal
+    delegated_service = string
+    # System policy names
+    policies      = optional(list(string), [])
+    all_resources = optional(bool, true)
+    duration      = optional(string, "FOREVER")
+    # Note: Required when all_resources is false.
+    project_name = optional(string, "")
   }))
   default = [
     {

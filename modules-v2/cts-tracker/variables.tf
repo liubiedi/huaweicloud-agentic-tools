@@ -1,3 +1,5 @@
+# --- Account audit inputs ---
+
 variable "environment" {
   type        = string
   default     = "shared"

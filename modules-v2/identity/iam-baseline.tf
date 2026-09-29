@@ -1,20 +1,13 @@
-# Per-account IAM baseline: password/login/protection policies plus service
-# agencies.
+# --- Account IAM baseline ---
 
 locals {
   iam_enabled = var.enable_iam_baseline
 
-  # Caller may pass null (no service agencies configured) - coalesce so the
-  # for-expression never iterates a null value.
+  # Service agency defaults
   _service_agencies = var.service_agencies == null ? [] : var.service_agencies
 }
 
-# ---- Password policy (v3) ----
-#
-# Schema: maximum_consecutive_identical_chars, minimum_password_age,
-# minimum_password_length, number_of_recent_passwords_disallowed,
-# password_not_username_or_invert, password_validity_period,
-# password_char_combination.
+# --- Password policy ---
 
 resource "huaweicloud_identity_password_policy" "this" {
   count = local.iam_enabled ? 1 : 0
@@ -28,7 +21,7 @@ resource "huaweicloud_identity_password_policy" "this" {
   password_not_username_or_invert       = lookup(var.iam_password_policy, "password_not_username_or_invert", true)
 }
 
-# ---- Login policy ----
+# --- Login policy ---
 
 resource "huaweicloud_identity_login_policy" "this" {
   count = local.iam_enabled ? 1 : 0
@@ -42,14 +35,7 @@ resource "huaweicloud_identity_login_policy" "this" {
   show_recent_login_info     = lookup(var.iam_login_policy, "show_recent_login_info", true)
 }
 
-# ---- Protection policy ----
-#
-# Schema:
-#   protection_enabled (Required, Bool)
-#   verification_mobile (Optional, String)
-#   verification_email (Optional, String)
-#   self_management (Optional, Block - list with MaxItems=1)
-#     access_key, password, mobile, email (all Optional Bool)
+# --- Operation protection policy ---
 
 resource "huaweicloud_identity_protection_policy" "this" {
   count = local.iam_enabled ? 1 : 0
@@ -64,12 +50,7 @@ resource "huaweicloud_identity_protection_policy" "this" {
   }
 }
 
-# ---- Service agencies ----
-#
-# Schema for huaweicloud_identity_agency: name, description, delegated_service_name,
-# duration, all_resources_roles (Optional Set), project_role (Optional list of blocks).
-# all_resources_roles is a Set of strings (role names), NOT a block.
-# project_role is a list of blocks { project, roles }.
+# --- Service agencies ---
 
 resource "huaweicloud_identity_agency" "this" {
   for_each = local.iam_enabled ? { for a in local._service_agencies : a.name => a } : {}

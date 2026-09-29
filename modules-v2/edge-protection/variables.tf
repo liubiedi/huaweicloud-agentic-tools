@@ -1,14 +1,6 @@
-# Edge protection: Basic Anti-DDoS thresholds on EIPs + a dedicated
-# WAF instance/policy/domains.
-#
-# Deploys into the account that owns the protected EIPs and the WAF VPC - the
-# network hub account (the env passes a hub provider alias). Both APIs work in
-# agency-token cross-account mode (no OBS / v5-IAM here).
-#
-# Anti-DDoS Basic is pay-per-use tuning of the free per-EIP protection: destroy
-# resets the EIP to the default cleaning threshold rather than deleting anything.
-# The dedicated WAF instance is postPaid (fully Terraform-provisionable); CNAD
-# Advanced / AAD need pre-purchased instances and are out of scope.
+# --- Edge protection inputs ---
+# Note: Deploy in the account owning the EIPs and WAF VPC.
+# Note: Dedicated WAF provisions a paid instance; removing Anti-DDoS settings restores defaults.
 
 variable "enterprise_project_id" {
   type        = string
@@ -21,7 +13,7 @@ variable "tags" {
   default = {}
 }
 
-# ---- Anti-DDoS Basic ----
+# --- Basic Anti-DDoS inputs ---
 
 variable "eip_ids" {
   type        = map(string)
@@ -31,10 +23,13 @@ variable "eip_ids" {
 
 variable "antiddos" {
   type = list(object({
-    name           = string
-    eip            = string                # FK -> eip_ids key (05-network EIP name)
-    threshold_mbps = optional(number, 100) # traffic-cleaning threshold
-    alarm_topic    = optional(string, "")  # SMN topic NAME in this account (resolved to a URN); blank = no alarm notification
+    name = string
+    # Network EIP name
+    eip = string
+    # Traffic-cleaning threshold
+    threshold_mbps = optional(number, 100)
+    # Note: Account SMN topic name; blank disables notifications.
+    alarm_topic = optional(string, "")
   }))
   default     = []
   description = "Basic Anti-DDoS traffic-cleaning config per EIP."
@@ -46,7 +41,7 @@ variable "antiddos" {
   }
 }
 
-# ---- Dedicated WAF ----
+# --- Dedicated WAF inputs ---
 
 variable "enable_waf" {
   type        = bool
@@ -108,12 +103,17 @@ variable "waf_policy_name" {
 
 variable "waf_domains" {
   type = list(object({
-    domain          = string                   # protected domain (or IP), e.g. app.example.com
-    client_protocol = optional(string, "HTTP") # browser -> WAF: HTTP | HTTPS
-    server_protocol = optional(string, "HTTP") # WAF -> origin:  HTTP | HTTPS
-    origin_address  = string                   # origin server IP/hostname (e.g. the ELB VIP)
-    origin_port     = optional(number, 80)
-    certificate_id  = optional(string, "") # required when client_protocol = HTTPS
+    # Protected domain or IP
+    domain = string
+    # Client-to-WAF protocol
+    client_protocol = optional(string, "HTTP")
+    # WAF-to-origin protocol
+    server_protocol = optional(string, "HTTP")
+    # Origin IP or hostname
+    origin_address = string
+    origin_port    = optional(number, 80)
+    # Note: Required for HTTPS clients.
+    certificate_id = optional(string, "")
   }))
   default     = []
   description = "Domains protected by the dedicated WAF instance; origins typically point at the hub ingress ELB private VIP."

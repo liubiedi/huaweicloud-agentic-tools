@@ -1,3 +1,5 @@
+# --- Log aggregation configuration ---
+
 resource "huaweicloud_kms_key" "archive" {
   count = local.enabled ? 1 : 0
 

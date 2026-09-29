@@ -1,13 +1,5 @@
-# Org-wide LTS log aggregation (log converge) + OBS archive.
-#
-# Runs in the LTS delegated-admin account (Organizations TrustedServices row
-# service.LTS -> DelegatedAdmin). The provider MUST use the assume_role block
-# (not agency-token mode): this module creates an OBS bucket, which under
-# agency-token mode would land in the MASTER account.
-#
-# Member log streams (sources) converge into target groups/streams created here
-# (hot retention converged_retention_days), and each target group transfers to
-# the archive OBS bucket on a cycle (retention archive_retention_days).
+# --- Log aggregation inputs ---
+# Note: Use assume_role credentials so the archive bucket is created in the LTS admin account.
 
 variable "enable_log_aggregation" {
   type        = bool
@@ -39,11 +31,12 @@ variable "home_region" {
   description = "Region this module deploys into. Used to resolve the admin account's region project ID (lts_log_converge.management_project_id)."
 }
 
-# ---- Converge mappings (member sources -> admin targets) ----
+# --- Member-to-admin log mappings ---
 
 variable "converge_members" {
   type = map(object({
-    account_id = string # member domain ID
+    # Member account domain ID
+    account_id = string
     mappings = list(object({
       source_log_group_id   = string
       target_log_group_name = string
@@ -63,7 +56,7 @@ variable "converged_retention_days" {
   description = "Hot (LTS) retention of the converged target groups/streams, in days."
 }
 
-# ---- Archive bucket ----
+# --- Archive bucket inputs ---
 
 variable "archive_bucket_name" {
   type        = string
@@ -99,8 +92,8 @@ variable "archive_bucket_force_destroy" {
   description = "DANGER: allow Terraform to delete a NON-EMPTY archive bucket (deletes archived logs). Only needed to recreate on an archive_bucket_name rename."
 }
 
-# ---- Transfer cadence ----
-# Valid combinations (Huawei): 2/5/30 min, 1/3/6/12 hour.
+# --- Transfer schedule ---
+# Note: Supported intervals are 2/5/30 minutes or 1/3/6/12 hours.
 
 variable "transfer_period" {
   type        = number

@@ -1,3 +1,5 @@
+# --- Provider requirements ---
+
 terraform {
   required_version = ">= 1.6.3"
 
@@ -9,23 +11,12 @@ terraform {
   }
 }
 
-# Identity and permission management
-#
-# Two halves, each gated by an enable_* flag. Env layer typically calls
-# this module twice:
-#   1. Once in master account with enable_identity_center_content = true
-#      -> creates IC users/groups/permission sets/account assignments
-#   2. Per-account (via provider alias) with enable_iam_baseline = true
-#      -> creates v3 IAM baseline (password/login/protection) + agencies
-#
-# A single call with both flags set is supported (e.g., for the master
-# account itself), though that's atypical.
+# --- Identity configuration ---
 
-# Identity Center content + IAM baseline live in identity-center.tf and
-# iam-baseline.tf respectively. This file holds only locals + validations.
+# --- Identity module components ---
+# Note: Content is in identity-center.tf; account policies are in iam-baseline.generated.tf.
 
-# Validation: when enable_identity_center_content = true, identity_store_id
-# and identity_center_instance_id must be set.
+# --- Identity Center input validation ---
 check "ic_inputs_provided" {
   assert {
     condition     = !var.enable_identity_center_content || (var.identity_store_id != "" && var.identity_center_instance_id != "")

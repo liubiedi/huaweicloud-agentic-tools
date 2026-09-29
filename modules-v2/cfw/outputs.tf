@@ -1,3 +1,5 @@
+# --- Firewall outputs ---
+
 output "address_group_ids" {
   description = "Address group NAME -> ID."
   value       = { for k, v in huaweicloud_cfw_address_group.this : k => v.id }

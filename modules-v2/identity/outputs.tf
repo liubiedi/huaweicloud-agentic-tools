@@ -1,3 +1,5 @@
+# --- Identity outputs ---
+
 output "group_ids" {
   description = "Map of IC group name -> ID (only populated when enable_identity_center_content = true)"
   value       = { for k, v in huaweicloud_identitycenter_group.this : k => v.id }

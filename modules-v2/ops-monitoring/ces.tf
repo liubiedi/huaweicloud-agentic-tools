@@ -1,9 +1,4 @@
-# CES alarms.
-#
-# huaweicloud_ces_one_click_alarm takes a `one_click_alarm_id` - a UUID the
-# console returns after enabling a one-click bundle - and a `dimension_names`
-# block; namespace strings such as SYS.ECS are not direct inputs. Hand-built
-# rules go in var.custom_alarm_rules.
+# --- Cloud Eye alarms ---
 
 resource "huaweicloud_ces_alarmrule" "custom" {
   for_each = { for r in var.custom_alarm_rules : r.name => r }
@@ -38,12 +33,7 @@ resource "huaweicloud_ces_alarmrule" "custom" {
   alarm_action_enabled = true
 }
 
-# ---- One-click monitoring ----
-# Enable Huawei's predefined one-click alarm bundles. The bundle ID is resolved
-# from the namespace via the ces_one_click_alarms data source (no console lookup
-# needed). The bundle applies to all resources of the service (no per-metric
-# dimensions); event_enabled toggles its event alarm rules. Each enabled bundle
-# notifies the SMN topic.
+# --- One-click alarm bundles ---
 
 data "huaweicloud_ces_one_click_alarms" "available" {
   count = length(var.one_click_alarms) > 0 ? 1 : 0
@@ -77,16 +67,10 @@ resource "huaweicloud_ces_one_click_alarm" "this" {
   notification_begin_time = "00:00"
   notification_end_time   = "23:59"
 
-  # Notify chain: one-click alarm -> SMN topic -> its subscriptions. Ensure the
-  # topic subscriptions exist before the alarm is enabled so alerts have
-  # recipients.
+  # Note: Create topic subscriptions before enabling alarms.
   depends_on = [huaweicloud_smn_subscription.this]
 
-  # The ces_one_click_alarms data source returns the TEMPLATE id (e.g.
-  # CBRSystemOneClickAlarm) before the bundle exists, but the created-INSTANCE id
-  # (oca...) afterwards. Re-resolving it on every plan would force an immutable
-  # update ("one_click_alarm_id can't be updated"). The id only matters at create,
-  # so ignore drift on it after the bundle exists.
+  # Note: Ignore bundle ID drift because lookup results change after creation.
   lifecycle {
     ignore_changes = [one_click_alarm_id]
   }

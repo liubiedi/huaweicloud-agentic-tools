@@ -1,4 +1,4 @@
-# ---- Archive bucket (LTS transfer destination) ----
+# --- Log archive bucket ---
 
 resource "huaweicloud_obs_bucket" "archive" {
   count = local.enabled ? 1 : 0
@@ -7,9 +7,7 @@ resource "huaweicloud_obs_bucket" "archive" {
   storage_class = "STANDARD"
   acl           = "private"
 
-  # OBS bucket names are immutable: changing archive_bucket_name destroys +
-  # recreates the bucket. force_destroy lets Terraform delete a NON-EMPTY old
-  # bucket on that rename - i.e. it DELETES the archived logs. Default false.
+  # Note: Renaming replaces the bucket; force_destroy permits deletion of archived logs.
   force_destroy = var.archive_bucket_force_destroy
 
   versioning = true
@@ -24,7 +22,7 @@ resource "huaweicloud_obs_bucket" "archive" {
     expiration {
       days = var.archive_retention_days
     }
-    # Move objects to the COLD storage class after N days (0 = keep STANDARD).
+    # Archive transition
     dynamic "transition" {
       for_each = var.archive_cold_after_days > 0 ? [1] : []
       content {
@@ -50,8 +48,7 @@ resource "huaweicloud_obs_bucket" "archive" {
   tags = var.tags
 }
 
-# Deny any request that does not use TLS (Config rule: "OBS Buckets Should
-# Deny Requests Not Encrypted with SSL"). LTS transfers and SOC pulls use HTTPS.
+# --- TLS-only access policy ---
 resource "huaweicloud_obs_bucket_policy" "archive_tls_only" {
   count  = local.enabled ? 1 : 0
   bucket = huaweicloud_obs_bucket.archive[0].id

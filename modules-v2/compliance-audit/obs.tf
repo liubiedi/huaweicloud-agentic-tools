@@ -1,17 +1,13 @@
-# One OBS bucket:
-#   - lz-audit  (the central CTS event trail)
+# --- Audit storage ---
 
-# ---- Audit bucket (CTS events) ----
+# --- CTS audit bucket ---
 
 resource "huaweicloud_obs_bucket" "audit" {
   bucket        = local.audit_bucket_name
   storage_class = "STANDARD"
   acl           = "private"
 
-  # OBS bucket names are immutable: changing audit_bucket_name destroys + recreates
-  # the bucket. force_destroy lets Terraform delete a NON-EMPTY old bucket on that
-  # rename - i.e. it DELETES the stored audit objects. Default false (safe): a
-  # rename then fails until you opt in, so you don't lose audit logs by accident.
+  # Note: Renaming replaces the bucket; force_destroy permits deletion of stored audit logs.
   force_destroy = var.audit_bucket_force_destroy
 
   versioning = true
@@ -26,7 +22,7 @@ resource "huaweicloud_obs_bucket" "audit" {
     expiration {
       days = var.audit_retention_days
     }
-    # Move objects to the COLD storage class after N days (0 = keep STANDARD).
+    # Archive transition
     dynamic "transition" {
       for_each = var.audit_cold_after_days > 0 ? [1] : []
       content {
@@ -52,9 +48,7 @@ resource "huaweicloud_obs_bucket" "audit" {
   tags = var.tags
 }
 
-# Deny any request that does not use TLS (Config rule: "OBS Buckets Should
-# Deny Requests Not Encrypted with SSL"). Pure Deny statement - grants for the
-# CTS service delivery are unaffected (CTS writes over HTTPS).
+# --- TLS-only access policy ---
 resource "huaweicloud_obs_bucket_policy" "audit_tls_only" {
   bucket = huaweicloud_obs_bucket.audit.id
   policy = <<POLICY
@@ -81,16 +75,11 @@ resource "huaweicloud_obs_bucket_bpa" "audit" {
   ignore_public_acls      = true
   restrict_public_buckets = true
 
-  # The BPA's bucket is immutable. When the bucket is REPLACED (a rename), the BPA
-  # must be replaced too rather than updated-in-place ("bucket can't be updated").
+  # Note: Replace the public-access block when the bucket is replaced.
   lifecycle {
     replace_triggered_by = [huaweicloud_obs_bucket.audit]
   }
 }
 
-# No explicit OBS bucket policy: the org CTS tracker and the audit bucket live in
-# the same (CTS-admin) account, so CTS writes in-account. (The old AWS/S3-style
-# policy - s3:PutObject / arn:aws principals - is invalid for Huawei OBS:
-# MalformedPolicy "invalid action". If cross-account CTS write is ever needed,
-# add an OBS-format policy: policy_format="obs", Principal={ID=["domain/<id>"]},
-# Action=["PutObject"].)
+# --- CTS delivery permissions ---
+# Note: Delivery is within the audit account; no cross-account grant is configured.

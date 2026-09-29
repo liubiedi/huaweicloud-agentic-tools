@@ -1,14 +1,12 @@
-# ---- Org log receiving + converge targets + per-member converge + OBS transfer ----
+# --- Organization log aggregation ---
 
-# Enable this account to RECEIVE converged logs (org-level LTS switch).
-# Destroying it disables receiving.
+# --- Log receiving ---
+# Note: Removing this resource disables receiving.
 resource "huaweicloud_lts_log_converge_switch" "this" {
   count = local.enabled ? 1 : 0
 }
 
-# Target log groups/streams (owned here, hot retention = converged_retention_days).
-# Created explicitly and passed to the converge by ID, so the whole chain is plain
-# resources - no post-apply lookups.
+# --- Target log groups and streams ---
 resource "huaweicloud_lts_group" "target" {
   for_each = local.target_groups
 
@@ -26,9 +24,7 @@ resource "huaweicloud_lts_stream" "target" {
   tags        = var.tags
 }
 
-# One converge config per REMOTE member account: its source groups/streams map
-# onto the target groups/streams above. (Admin-local sources skip the converge -
-# see the direct transfer at the bottom.)
+# --- Member log convergence ---
 resource "huaweicloud_lts_log_converge" "member" {
   for_each = local.enabled ? local.remote_members : {}
 
@@ -59,7 +55,7 @@ resource "huaweicloud_lts_log_converge" "member" {
   depends_on = [huaweicloud_lts_log_converge_switch.this]
 }
 
-# One OBS transfer per target group, covering all its converged streams.
+# --- Converged log archival ---
 resource "huaweicloud_lts_transfer" "archive" {
   for_each = local.streams_by_group
 
@@ -79,10 +75,11 @@ resource "huaweicloud_lts_transfer" "archive" {
     log_transfer_status = "ENABLE"
 
     log_transfer_detail {
-      obs_period           = var.transfer_period
-      obs_period_unit      = var.transfer_period_unit
-      obs_bucket_name      = huaweicloud_obs_bucket.archive[0].bucket
-      obs_dir_prefix_name  = each.key # no trailing slash: LTS strips it, a slashed value drifts forever
+      obs_period      = var.transfer_period
+      obs_period_unit = var.transfer_period_unit
+      obs_bucket_name = huaweicloud_obs_bucket.archive[0].bucket
+      # Note: Omit the trailing slash to avoid recurring drift.
+      obs_dir_prefix_name  = each.key
       obs_encrypted_enable = true
       obs_encrypted_id     = huaweicloud_kms_key.archive[0].id
       obs_time_zone        = "UTC"
@@ -91,12 +88,8 @@ resource "huaweicloud_lts_transfer" "archive" {
   }
 }
 
-# Admin-local sources: their groups already live in this account, so transfer the
-# SOURCE group/streams directly (no converge, no duplicate target). Hot retention
-# stays whatever the owning module set on the source group.
-#
-# Serialized after the converge-target transfers so the first encrypted
-# transfer seeds the LTS KMS authorization before this wave runs.
+# --- Admin-local log archival ---
+# Note: Runs after converged transfers establish LTS access to the encryption key.
 resource "huaweicloud_lts_transfer" "archive_local" {
   for_each = local.enabled ? local.local_mappings : {}
 
@@ -118,10 +111,11 @@ resource "huaweicloud_lts_transfer" "archive_local" {
     log_transfer_status = "ENABLE"
 
     log_transfer_detail {
-      obs_period           = var.transfer_period
-      obs_period_unit      = var.transfer_period_unit
-      obs_bucket_name      = huaweicloud_obs_bucket.archive[0].bucket
-      obs_dir_prefix_name  = each.key # no trailing slash: LTS strips it, a slashed value drifts forever
+      obs_period      = var.transfer_period
+      obs_period_unit = var.transfer_period_unit
+      obs_bucket_name = huaweicloud_obs_bucket.archive[0].bucket
+      # Note: Omit the trailing slash to avoid recurring drift.
+      obs_dir_prefix_name  = each.key
       obs_encrypted_enable = true
       obs_encrypted_id     = huaweicloud_kms_key.archive[0].id
       obs_time_zone        = "UTC"

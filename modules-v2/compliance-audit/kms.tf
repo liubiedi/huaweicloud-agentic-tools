@@ -1,4 +1,4 @@
-# Log-infrastructure CMKs - one per bucket.
+# --- Audit encryption key ---
 
 resource "huaweicloud_kms_key" "audit" {
   key_alias         = local.kms_audit_alias

@@ -1,3 +1,5 @@
+# --- VPN outputs ---
+
 output "gateway_ids" {
   description = "VPN gateway NAME -> ID."
   value       = { for k, v in huaweicloud_vpn_gateway.this : k => v.id }

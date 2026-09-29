@@ -1,3 +1,5 @@
+# --- Provider requirements ---
+
 terraform {
   required_version = ">= 1.6.3"
   required_providers {
@@ -5,6 +7,4 @@ terraform {
   }
 }
 
-# Ops monitoring (SMN topics + CES alarms).
-# Resources live in smn.tf and sibling files. Tagging is provider-level
-# (default_tags) only - modules inject no tags of their own.
+# --- Monitoring configuration ---

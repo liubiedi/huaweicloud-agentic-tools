@@ -1,3 +1,5 @@
+# --- DNS outputs ---
+
 output "public_zone_ids" {
   description = "Public zone NAME -> ID."
   value       = { for k, v in huaweicloud_dns_zone.public : k => v.id }

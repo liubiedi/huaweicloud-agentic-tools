@@ -1,4 +1,4 @@
-# ---- Firewall + protected-object IDs (resolved by the env from 05-network state) ----
+# --- Firewall and protected-object IDs ---
 
 variable "fw_instance_id" {
   type        = string
@@ -17,7 +17,7 @@ variable "vpc_object_id" {
   description = "Protected-object ID for the VPC border (east-west, protect_objects type=1). Blank when the CFW has no east-west object."
 }
 
-# ---- Attack defense (internet protected object) ----
+# --- Internet attack defense ---
 
 variable "enterprise_project_id" {
   type        = string
@@ -37,15 +37,18 @@ variable "enable_reverse_shell_defense" {
   description = "Set every reverse-shell advanced IPS rule on the internet border to block+enabled (action-style; re-apply reasserts)."
 }
 
-# ---- Object groups ----
+# --- Object groups ---
 
 variable "address_groups" {
   type = list(object({
-    name         = string
-    border       = optional(string, "internet") # internet | vpc
-    address_type = optional(string, "ipv4")     # ipv4 | ipv6
-    members      = optional(list(string), [])   # IPs / CIDRs / ranges
-    description  = optional(string, "")
+    name = string
+    # Values: internet, vpc
+    border = optional(string, "internet")
+    # Values: ipv4, ipv6
+    address_type = optional(string, "ipv4")
+    # IP addresses, CIDRs and ranges
+    members     = optional(list(string), [])
+    description = optional(string, "")
   }))
   default     = []
   description = "User-defined IP address groups (+ members)."
@@ -53,9 +56,11 @@ variable "address_groups" {
 
 variable "domain_groups" {
   type = list(object({
-    name        = string
-    border      = optional(string, "internet")    # internet | vpc
-    type        = optional(string, "application") # application | network
+    name = string
+    # Values: internet, vpc
+    border = optional(string, "internet")
+    # Values: application, network
+    type        = optional(string, "application")
     domains     = optional(list(string), [])
     description = optional(string, "")
   }))
@@ -65,27 +70,32 @@ variable "domain_groups" {
 
 variable "service_groups" {
   type = list(object({
-    name        = string
-    border      = optional(string, "internet")
-    members     = optional(list(string), []) # 'protocol/srcport/dstport' entries
+    name   = string
+    border = optional(string, "internet")
+    # Protocol/source-port/destination-port entries
+    members     = optional(list(string), [])
     description = optional(string, "")
   }))
   default     = []
   description = "User-defined service groups (+ members)."
 }
 
-# ---- Rules ----
+# --- Rule inputs ---
 
 variable "acl_rules" {
   type = list(object({
-    name        = string
-    kind        = string                    # eip | nat | vpc
-    action      = optional(string, "allow") # allow | deny
+    name = string
+    # Values: eip, nat, vpc
+    kind = string
+    # Values: allow, deny
+    action      = optional(string, "allow")
     source      = optional(list(string), ["any"])
     destination = optional(list(string), ["any"])
     service     = optional(list(string), ["any"])
-    status      = optional(string, "enable") # enable | disable
-    direction   = optional(string, "")       # inbound | outbound; internet border only ("" = nat->outbound, eip->inbound)
+    # Values: enable, disable
+    status = optional(string, "enable")
+    # Note: Internet direction; blank selects NAT outbound or EIP inbound.
+    direction   = optional(string, "")
     description = optional(string, "")
   }))
   default     = []
@@ -94,12 +104,17 @@ variable "acl_rules" {
 
 variable "black_white_lists" {
   type = list(object({
-    name         = optional(string, "")
-    border       = optional(string, "internet") # internet | vpc
-    list_type    = string                       # blacklist | whitelist
-    direction    = optional(string, "source")   # source | destination
-    protocol     = optional(string, "any")      # tcp | udp | icmp | icmpv6 | any
-    address_type = optional(string, "ipv4")     # ipv4 | ipv6 | domain
+    name = optional(string, "")
+    # Values: internet, vpc
+    border = optional(string, "internet")
+    # Values: blacklist, whitelist
+    list_type = string
+    # Values: source, destination
+    direction = optional(string, "source")
+    # Values: tcp, udp, icmp, icmpv6, any
+    protocol = optional(string, "any")
+    # Values: ipv4, ipv6, domain
+    address_type = optional(string, "ipv4")
     address      = string
     port         = optional(string, "")
     description  = optional(string, "")

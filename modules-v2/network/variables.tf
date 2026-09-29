@@ -1,8 +1,4 @@
-# Network planning
-#
-# Single module with two halves (hub + spoke) controlled by enable flags.
-# Env calls it once with enable_hub=true (in network-hub account) and N times
-# with enable_spoke=true (per spoke account).
+# --- Network inputs ---
 
 variable "environment" {
   type    = string
@@ -13,7 +9,7 @@ variable "tags" {
   default = {}
 }
 
-# ---- Section toggles ----
+# --- Feature switches ---
 
 variable "enable_hub" {
   type    = bool
@@ -24,13 +20,9 @@ variable "enable_spoke" {
   default = false
 }
 
-# ---- Hub inputs ----
+# --- Hub VPC inputs ---
 
-# Recommended hub CIDR sizing (documentation):
-#   - vpc-dmz       /20 minimum (NAT + ELB + per-AZ subnets)
-#   - vpc-access    /23 minimum (DC/VPN gateway subnets)
-#   - vpc-shared    /22 minimum (shared services future expansion)
-#   - vpc-inspection /24 reserved (not created; CFW operates without a VPC)
+# --- Hub address ranges ---
 
 variable "hub_vpcs" {
   type = map(object({
@@ -68,9 +60,7 @@ variable "spoke_private_supernet" {
   description = "Supernet covering all spoke + hub private CIDRs. The SNAT VPC auto-gets a <supernet> -> ER route (return path to spokes; more specific than its 0.0.0.0/0 -> NAT default). Blank = no return route."
 }
 
-# ---- Explicit resource names ----
-# Every named hub singleton takes its name from these. Unset falls back to the
-# lz-hub-* default, so leaving one blank is non-breaking.
+# --- Hub resource names ---
 
 variable "er_name" {
   type        = string
@@ -93,7 +83,7 @@ variable "er_share_name" {
   description = "Name of the RAM resource share for the ER attachment."
 }
 
-# ---- Enterprise Router ----
+# --- Enterprise Router inputs ---
 
 variable "er_asn" {
   type    = number
@@ -108,17 +98,17 @@ variable "er_auto_accept_shared_attachments" {
   default = true
 }
 
-# ---- ER attachments + routing (explicit, attachment-centric) ----
-# attachment_type discriminates how attachment/next_hop names resolve to an
-# attachment_id: vpc -> er_attachments[name]; cfw -> CFW ER-mode attachment.
-# (Spokes self-wire their own associations/propagations - see spoke.tf.)
+# --- ER attachment inputs ---
 
 variable "er_attachments" {
   type = list(object({
-    name           = string
-    vpc            = string                # hub VPC name
-    subnet         = optional(string, "")  # subnet carrying the attachment; blank = VPC's first subnet
-    auto_add_route = optional(bool, false) # auto_create_vpc_routes
+    name = string
+    # Hub VPC name
+    vpc = string
+    # Note: Blank selects the first VPC subnet.
+    subnet = optional(string, "")
+    # Automatic VPC routes
+    auto_add_route = optional(bool, false)
     description    = optional(string, "")
   }))
   default     = []
@@ -134,13 +124,7 @@ variable "er_route_tables" {
   description = "Custom ER route tables. ER default association/propagation is disabled, so these + associations/propagations/static routes drive all routing."
 }
 
-# ER routing is fully AUTO-wired (no per-row tables):
-#   - every hub + spoke VPC attachment associates to inbound_route_table and
-#     propagates into outbound_route_table;
-#   - the CFW ER-mode attachment associates to outbound_route_table;
-#   - static route inbound 0.0.0.0/0 -> CFW;
-#   - static route outbound 0.0.0.0/0 -> snat_vpc_attachment.
-# Just define the two route table names in er_route_tables.
+# --- Inspection routing inputs ---
 variable "inbound_route_table" {
   type        = string
   default     = "er-inbound"
@@ -173,11 +157,7 @@ variable "subnet_dns" {
   }
 }
 
-# ---- VPC flow logs (hub + spoke, uniform) ----
-# One LTS group + stream per VPC, both named '<vpc>-flowlog' (per-VPC groups so
-# multiple spokes in one account never race on a group name), plus a
-# huaweicloud_vpc_flow_log capturing ALL traffic. Aggregate to the archive
-# Bucket via the log-convergence rows (SourceGroup/Stream = <vpc>-flowlog).
+# --- VPC flow-log inputs ---
 
 variable "enable_vpc_flow_logs" {
   type        = bool
@@ -191,15 +171,11 @@ variable "flow_log_retention_days" {
   description = "Hot LTS retention (days) of the per-VPC '<vpc>-flowlog' groups/streams."
 }
 
-# Hub VPC default-route tables are AUTO-wired (snat_vpc_attachment +
-# spoke_private_supernet): the SNAT VPC gets 0.0.0.0/0 -> its NAT gateway and
-# <supernet> -> ER; every other ER-attached hub VPC gets 0.0.0.0/0 -> ER.
+# --- Hub VPC routing ---
 
-# Spokes self-wire their ER association/propagation against the hub route tables
-# (see spoke.tf) - no cross-account attachment discovery is needed because the
-# hub + spokes deploy in the same apply.
+# --- Spoke routing ---
 
-# ---- Cloud Firewall ----
+# --- Firewall inputs ---
 
 variable "cfw_flavor" {
   type    = string
@@ -210,8 +186,8 @@ variable "cfw_flavor" {
   }
 }
 
-# IPS attack defense on the hub firewall. null (the default) = the setting is
-# NOT managed by Terraform and stays console-controlled.
+# --- Firewall IPS settings ---
+# Note: null leaves settings under console management.
 variable "cfw_ips_protection_mode" {
   type    = number
   default = null
@@ -226,10 +202,8 @@ variable "cfw_ips_patch_enabled" {
   default = null
 }
 
-# CFW billing - the only hub resource with a billing choice (all others are
-# pay-per-use). "subscription" requires cfw_period_unit/cfw_period; auto_renew
-# applies only to subscription. The module maps these to the provider's
-# postPaid/prePaid values.
+# --- Firewall billing inputs ---
+# Note: Subscription requires a period and unit; auto-renew applies only to subscription.
 variable "cfw_charging_mode" {
   type        = string
   default     = "pay-per-use"
@@ -259,14 +233,18 @@ variable "cfw_acl_rules" {
   type = list(object({
     name        = string
     description = optional(string, "")
-    action_type = number # 0 = allow, 1 = deny
-    direction   = number # 0 = inbound, 1 = outbound
-    type        = number # 0 = traffic between vpc/internet, 1 = ew
+    # Values: 0 allow, 1 deny
+    action_type = number
+    # Values: 0 inbound, 1 outbound
+    direction = number
+    # Values: 0 internet, 1 east-west
+    type        = number
     source      = object({ type = number, address = optional(string, "") })
     destination = object({ type = number, address = optional(string, "") })
     service     = object({ type = number, protocol = number, source_port = optional(string, ""), dest_port = optional(string, "") })
     order       = object({ dest_rule_id = optional(string, ""), top = optional(bool, false) })
-    status      = number # 0 = disabled, 1 = enabled
+    # Values: 0 disabled, 1 enabled
+    status = number
   }))
   default = []
 }
@@ -301,7 +279,7 @@ variable "cfw_lts_log_group_name" {
   description = "Name of the LTS log group the hub creates for CFW logs (when cfw_lts_log_enable=true)."
 }
 
-# One LTS stream per CFW log type (traffic/flow, access, attack).
+# --- Firewall log streams ---
 variable "cfw_lts_traffic_stream_name" {
   type        = string
   default     = "cfw-traffic"
@@ -318,23 +296,22 @@ variable "cfw_lts_attack_stream_name" {
   description = "LTS stream name for CFW attack logs."
 }
 
-# Optional override: reuse a pre-existing LTS GROUP instead of creating one. The
-# three streams are still created in it. Blank = hub creates the group too.
+# --- Existing firewall log group ---
+# Note: A supplied group is reused; the three streams are still created.
 variable "cfw_lts_group_id" {
   type        = string
   default     = ""
   description = "Pre-existing LTS group ID to reuse. Blank = hub creates from cfw_lts_log_group_name."
 }
 
-# ---- EIPs (multi-instance, dedicated bandwidth each) ----
-# NAT (via SNAT/DNAT) and ELBs reference an EIP by name. All EIPs pay-per-use;
-# billed_by selects bandwidth vs traffic metering.
+# --- Public IP inputs ---
 
 variable "eips" {
   type = list(object({
-    name           = string
-    type           = optional(string, "5_bgp")
-    billed_by      = optional(string, "bandwidth") # bandwidth | traffic
+    name = string
+    type = optional(string, "5_bgp")
+    # Values: bandwidth, traffic
+    billed_by      = optional(string, "bandwidth")
     bandwidth_size = optional(number, 100)
     description    = optional(string, "")
   }))
@@ -342,14 +319,17 @@ variable "eips" {
   description = "Elastic IPs. SNAT/DNAT and ELBs reference one by name."
 }
 
-# ---- NAT gateways (public, multi-instance) ----
+# --- NAT gateway inputs ---
 
 variable "nat_gateways" {
   type = list(object({
-    name   = string
-    spec   = optional(string, "Small") # Small | Medium | Large | Extra-large
-    vpc    = string                    # hub VPC name
-    subnet = optional(string, "")      # subnet name; blank = VPC's first subnet
+    name = string
+    # Values: Small, Medium, Large, Extra-large
+    spec = optional(string, "Small")
+    # Hub VPC name
+    vpc = string
+    # Note: Blank selects the first VPC subnet.
+    subnet = optional(string, "")
   }))
   default     = []
   description = "Hub public NAT gateways. SNAT/DNAT rules reference one by name and supply the EIP."
@@ -361,9 +341,11 @@ variable "nat_gateways" {
 
 variable "snat_rules" {
   type = list(object({
-    nat_name    = optional(string, "") # NAT gateway name; blank = sole NAT
-    cidr        = string
-    eip         = string # EIP name (from var.eips)
+    # Note: Blank selects the sole NAT gateway.
+    nat_name = optional(string, "")
+    cidr     = string
+    # Public IP name
+    eip         = string
     description = optional(string, "")
   }))
   default = []
@@ -371,8 +353,10 @@ variable "snat_rules" {
 
 variable "dnat_rules" {
   type = list(object({
-    nat_name      = optional(string, "") # NAT gateway name; blank = sole NAT
-    eip           = string               # EIP name (from var.eips)
+    # Note: Blank selects the sole NAT gateway.
+    nat_name = optional(string, "")
+    # Public IP name
+    eip           = string
     external_port = number
     internal_ip   = string
     internal_port = number
@@ -383,17 +367,21 @@ variable "dnat_rules" {
   description = "DNAT rules - named EIP -> internal target for public ingress."
 }
 
-# ---- ELBs (dedicated, IPv4, multi-instance) ----
+# --- Load balancer inputs ---
 
 variable "elbs" {
   type = list(object({
-    name            = string
-    azs             = optional(list(string), [])
-    vpc             = string
-    frontend_subnet = optional(string, "")  # VIP subnet name; blank = VPC's first subnet
-    backend_subnet  = optional(string, "")  # backend member subnet name
-    ip_as_backend   = optional(bool, false) # cross_vpc_backend
-    eip             = optional(string, "")  # EIP name for public access; blank = internal
+    name = string
+    azs  = optional(list(string), [])
+    vpc  = string
+    # Note: Blank selects the first VPC subnet for the VIP.
+    frontend_subnet = optional(string, "")
+    # Backend subnet name
+    backend_subnet = optional(string, "")
+    # Cross-VPC backends
+    ip_as_backend = optional(bool, false)
+    # Note: Blank creates an internal load balancer.
+    eip = optional(string, "")
   }))
   default     = []
   description = "Hub dedicated (IPv4) load balancers, elastic spec (no fixed flavor). Listeners/pools reference one by loadbalancer_name."
@@ -401,7 +389,8 @@ variable "elbs" {
 
 variable "elb_listeners" {
   type = list(object({
-    loadbalancer_name = optional(string, "") # ELB name; blank = sole ELB
+    # Note: Blank selects the sole load balancer.
+    loadbalancer_name = optional(string, "")
     name              = string
     protocol          = string
     protocol_port     = number
@@ -413,7 +402,8 @@ variable "elb_listeners" {
 
 variable "elb_pools" {
   type = list(object({
-    loadbalancer_name = optional(string, "") # ELB name; blank = sole ELB
+    # Note: Blank selects the sole load balancer.
+    loadbalancer_name = optional(string, "")
     name              = string
     protocol          = string
     lb_method         = string
@@ -431,7 +421,7 @@ variable "elb_lts_stream_id" {
   default = ""
 }
 
-# ---- RAM (cross-account share) ----
+# --- Resource sharing inputs ---
 
 variable "ram_share_principals" {
   type        = list(string)
@@ -445,7 +435,7 @@ variable "er_share_owner_account_id" {
   description = "Domain (account) ID that owns the hub ER - i.e. the hub member account. Used to build the RAM resource URN (er:<region>:<account-id>:enterpriseRouter:<er-id>). Required when ram_share_principals is non-empty; supplied by the env from the foundation accounts map."
 }
 
-# ---- Spoke inputs (per-call) ----
+# --- Spoke VPC inputs ---
 
 variable "spoke_vpc_name" {
   type    = string
@@ -456,8 +446,7 @@ variable "spoke_vpc_cidr" {
   default = ""
 }
 
-# Explicit spoke resource names. Blank derives the name from spoke_vpc_name,
-# so leaving one unset is non-breaking.
+# --- Spoke resource names ---
 variable "spoke_er_attachment_name" {
   type        = string
   default     = ""
@@ -488,7 +477,8 @@ variable "spoke_subnets" {
   type = list(object({
     name = string
     cidr = string
-    tags = optional(map(string), {}) # per-subnet tags (no Global default tags on spokes)
+    # Subnet resource tags
+    tags = optional(map(string), {})
   }))
   default     = []
   description = "Spoke subnets (AZ not pinned). The FIRST subnet carries the spoke ER attachment."
@@ -500,16 +490,14 @@ variable "spoke_vpc_tags" {
   description = "Tags for the spoke VPC + ER attachment. The spoke provider also carries default_tags (required - the enforced require_mandatory_tags SCP denies untagged creates); these per-row tags override every overlapping key, so they win whenever the row defines the full mandatory set."
 }
 
-# Spoke ER self-wiring (hub + spokes deploy in one apply). The hub passes its
-# route-table id map; the spoke auto-associates to inbound_route_table and
-# auto-propagates into outbound_route_table (the same two vars the hub uses).
+# --- Spoke ER routing ---
 variable "hub_route_table_ids" {
   type        = map(string)
   default     = {}
   description = "Hub ER route table name -> id (from the hub module's route_table_ids output)."
 }
 
-# Spoke VPC default route is auto-wired: 0.0.0.0/0 -> hub ER (see spoke.tf).
+# --- Spoke default route ---
 
 variable "spoke_er_id" {
   type        = string
@@ -518,7 +506,7 @@ variable "spoke_er_id" {
 }
 
 
-# ---- Optional features (default disabled) ----
+# --- Optional feature switches ---
 
 variable "enable_dns" {
   type    = bool
@@ -549,5 +537,4 @@ variable "enable_traffic_mirror" {
   default = false
 }
 
-# Detailed config for the gated features lives in the respective *.tf files
-# (dns.tf, waf.tf, and so on).
+# --- Optional feature configuration ---

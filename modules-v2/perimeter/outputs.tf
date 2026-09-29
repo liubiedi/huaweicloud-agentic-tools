@@ -1,3 +1,5 @@
+# --- Perimeter outputs ---
+
 output "scp_policy_ids" {
   description = "IDs of the SCP documents created (general + tag, enforced + staged)."
   value = concat(

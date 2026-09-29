@@ -1,4 +1,4 @@
-# SMN central notification topic.
+# --- Notification topic ---
 
 locals {
   topic_name = replace(var.topic_name, "{account-name}", var.account_name)
@@ -19,11 +19,8 @@ resource "huaweicloud_smn_subscription" "this" {
   remark    = "Landing zone subscriber"
 }
 
-# ---- Notification policies ----
-# huaweicloud_smn_notify_policy sets the delivery order/polling of the topic's
-# subscriptions for a protocol. Only protocols with ordered failover support it
-# (sms, callnotify); email/http/https subscriptions are rejected (SMN.00010010),
-# so the policy is created only for the supported protocols present.
+# --- Notification delivery policies ---
+# Note: Ordered failover is configured only for sms and callnotify subscriptions.
 resource "huaweicloud_smn_notify_policy" "this" {
   for_each = toset([for s in var.subscribers : s.protocol if contains(["sms", "callnotify"], s.protocol)])
 

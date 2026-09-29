@@ -1,12 +1,12 @@
-# ---- Hub outputs ----
+# --- Hub outputs ---
 
 output "er_id" {
   description = "Hub ER instance ID. Spokes use this as spoke_er_id."
   value       = local.hub_enabled ? huaweicloud_er_instance.hub[0].id : null
 }
 
-# huaweicloud_er_instance exports no `urn` attribute, so the RAM share builds
-# the resource URN string from id + region + account.
+# --- ER resource URN ---
+# Note: Assembled from the resource ID, region and owner account.
 
 output "er_route_table_ids" {
   description = "Map of route table name -> ID"
@@ -68,7 +68,7 @@ output "ram_share_id" {
   value       = local.hub_enabled && length(var.ram_share_principals) > 0 ? huaweicloud_ram_resource_share.er_attachment[0].id : null
 }
 
-# ---- Spoke outputs ----
+# --- Spoke outputs ---
 
 output "spoke_vpc_id" {
   description = "Spoke VPC ID (only when enable_spoke = true)"

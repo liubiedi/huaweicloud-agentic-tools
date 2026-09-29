@@ -1,3 +1,5 @@
+# --- Log aggregation outputs ---
+
 output "archive_bucket_name" {
   description = "Name of the LTS archive OBS bucket (null when disabled)."
   value       = local.enabled ? huaweicloud_obs_bucket.archive[0].bucket : null

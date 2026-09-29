@@ -1,3 +1,5 @@
+# --- Provider requirements ---
+
 terraform {
   required_version = ">= 1.6.3"
 
@@ -5,34 +7,31 @@ terraform {
     huaweicloud = {
       source  = "huaweicloud/huaweicloud"
       version = "~> 1.87"
-      # huaweicloud        = the account this instance deploys into (hub OR a spoke)
-      # huaweicloud.owner  = the ER OWNER (hub) - used by spoke association/propagation,
-      #                      which manage the hub's route tables (cross-account).
+      # Provider aliases
+      # Note: huaweicloud deploys resources; huaweicloud.owner manages hub ER routing.
       configuration_aliases = [huaweicloud.owner]
     }
     time = { source = "hashicorp/time", version = ">= 0.9" }
   }
 }
 
-# Network planning
-#
-# Locals + section toggle plumbing. Hub resources in hub.tf, spoke in spoke.tf.
+# --- Network configuration ---
 
 locals {
   hub_enabled   = var.enable_hub
   spoke_enabled = var.enable_spoke
 
-  # All declared hub VPCs (toggle individual VPCs via the HubVPCs Enabled column).
+  # Enabled hub VPCs
   effective_hub_vpcs = local.hub_enabled ? var.hub_vpcs : {}
 
-  # Flatten hub subnets across all VPCs
+  # Hub subnet mapping
   hub_subnets_flat = local.hub_enabled ? flatten([
     for vpc_name, vpc in local.effective_hub_vpcs : [
       for subnet in vpc.subnets : merge(subnet, { vpc_name = vpc_name, key = "${vpc_name}__${subnet.name}" })
     ]
   ]) : []
 
-  # Spoke ER-attach subnet: explicit (SpokeERAttachments.Subnet) else first subnet.
+  # Spoke attachment subnet selection
   spoke_er_attach_subnet = local.spoke_enabled ? (
     var.spoke_er_attach_subnet != "" ? var.spoke_er_attach_subnet : var.spoke_subnets[0].name
   ) : null

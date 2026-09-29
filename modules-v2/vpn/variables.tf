@@ -1,10 +1,12 @@
+# --- VPN inputs ---
+
 variable "enterprise_project_id" {
   type        = string
   default     = "0"
   description = "Enterprise project ID for the VPN resources. '0' = default project."
 }
 
-# ---- Cross-resource resolution (from the env, out of 05-network state) ----
+# --- Network name-to-ID maps ---
 
 variable "vpc_ids" {
   type        = map(string)
@@ -30,28 +32,35 @@ variable "er_route_table_ids" {
   description = "Hub ER route table NAME -> ID (05-network route_table_ids). Referenced by the gateways' er_*_route_table fields and by er_static_routes."
 }
 
-# ---- Gateways / customer gateways / connections ----
+# --- Gateway and connection inputs ---
 
 variable "gateways" {
   type = list(object({
-    name            = string
-    attachment      = optional(string, "er")             # vpc | er
-    vpc             = optional(string, "")               # VPC name: vpc attach -> vpc_id; er attach -> access_vpc_id (required for both)
-    connect_subnet  = optional(string, "")               # subnet name within vpc: vpc attach -> connect_subnet; er attach -> access_subnet_id
-    local_subnets   = optional(list(string), [])         # vpc attachment only: local CIDRs advertised
-    network_type    = optional(string, "public")         # public (2 EIPs) | private
-    ha_mode         = optional(string, "active-standby") # active-active | active-standby
-    flavor          = optional(string, "")               # blank = API default (Professional1)
-    azs             = optional(list(string), [])         # blank = auto-select 2 valid AZs for flavor+attachment
-    asn             = optional(number, 64512)
-    bandwidth_size  = optional(number, 100)         # public: Mbit/s per created EIP
-    eip_charge_mode = optional(string, "bandwidth") # public: EIP billing - bandwidth | traffic (ForceNew: console-first to switch live)
+    name = string
+    # Values: vpc, er
+    attachment = optional(string, "er")
+    # Note: VPC name is required for both VPC and ER attachments.
+    vpc = optional(string, "")
+    # Connection or ER access subnet name
+    connect_subnet = optional(string, "")
+    # Advertised CIDRs for VPC attachment
+    local_subnets = optional(list(string), [])
+    # Values: public (2 EIPs), private
+    network_type = optional(string, "public")
+    # Values: active-active, active-standby
+    ha_mode = optional(string, "active-standby")
+    # Note: Blank uses the API default flavor.
+    flavor = optional(string, "")
+    # Note: Empty selects two valid zones for the gateway flavor and attachment.
+    azs = optional(list(string), [])
+    asn = optional(number, 64512)
+    # Public EIP bandwidth in Mbit/s
+    bandwidth_size = optional(number, 100)
+    # Note: EIP billing changes can replace resources; change live billing in the console.
+    eip_charge_mode = optional(string, "bandwidth")
 
-    # ER routing (attachment=er only). The gateway's ER attachment associates to /
-    # propagates into these hub route tables (names from er_route_table_ids).
-    # Association steers traffic ARRIVING from on-prem (typically a dedicated
-    # hybrid RT whose 0/0 points at the CFW); propagation publishes BGP-learned
-    # on-prem routes (typically into the outbound RT). Blank = skip.
+    # ER route tables
+    # Note: Blank skips routing; association receives traffic and propagation publishes learned routes.
     er_association_route_table = optional(string, "")
     er_propagation_route_table = optional(string, "")
   }))
@@ -59,14 +68,15 @@ variable "gateways" {
   description = "S2C VPN gateways. network_type=public creates two EIPs (eip1/eip2) at bandwidth_size."
 }
 
-# (On-prem routes enter ER route tables via propagation only.)
+# --- On-premises route propagation ---
 
 variable "customer_gateways" {
   type = list(object({
-    name       = string
-    ip         = string
-    asn        = optional(number, 65000)
-    route_mode = optional(string, "bgp") # static | bgp
+    name = string
+    ip   = string
+    asn  = optional(number, 65000)
+    # Values: static, bgp
+    route_mode = optional(string, "bgp")
   }))
   default     = []
   description = "On-premises customer gateways."
@@ -74,13 +84,17 @@ variable "customer_gateways" {
 
 variable "connections" {
   type = list(object({
-    name             = string
-    gateway          = string                  # FK -> gateways[].name
-    customer_gateway = string                  # FK -> customer_gateways[].name
-    vpn_type         = optional(string, "bgp") # policy | static | bgp
-    peer_subnets     = optional(list(string), [])
-    ha_role          = optional(string, "master") # master (eip1) | slave (eip2)
-    psk              = string
+    name = string
+    # VPN gateway name
+    gateway = string
+    # Customer gateway name
+    customer_gateway = string
+    # Values: policy, static, bgp
+    vpn_type     = optional(string, "bgp")
+    peer_subnets = optional(list(string), [])
+    # Values: master (eip1), slave (eip2)
+    ha_role = optional(string, "master")
+    psk     = string
   }))
   default     = []
   description = "IPsec connections binding a gateway to a customer gateway. gateway_ip is the gateway EIP for the ha_role (master=eip1, slave=eip2)."

@@ -1,3 +1,5 @@
+# --- Security group inputs ---
+
 variable "security_groups" {
   description = "Security groups to create in this account. Default rules are deleted; every allow is an explicit sg_rules row."
   type = list(object({
@@ -11,8 +13,9 @@ variable "security_groups" {
 variable "sg_rules" {
   description = "Rules. remote: CIDR | sg:<group-name> (same account) | self. ports: '443', '5985-5986', '80,443', blank = all ports. protocol: tcp|udp|icmp|any."
   type = list(object({
-    sg          = string
-    direction   = string # ingress | egress
+    sg = string
+    # Values: ingress, egress
+    direction   = string
     protocol    = optional(string, "any")
     ports       = optional(string, "")
     remote      = string

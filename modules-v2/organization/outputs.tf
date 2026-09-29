@@ -1,3 +1,5 @@
+# --- Organization outputs ---
+
 output "organization_id" {
   description = "Huawei Organizations org ID"
   value       = huaweicloud_organizations_organization.this.id
