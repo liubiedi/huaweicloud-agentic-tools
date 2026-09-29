@@ -1,3 +1,10 @@
+terraform {
+  required_version = ">= 1.6.3"
+  required_providers {
+    huaweicloud = { source = "huaweicloud/huaweicloud", version = "~> 1.87" }
+  }
+}
+
 # ---- S2C VPN gateways ----
 # attachment=vpc binds to a 05-network VPC (vpc_id + connect_subnet + local_subnets);
 # attachment=er binds to the hub ER. network_type=public creates two EIPs inline.

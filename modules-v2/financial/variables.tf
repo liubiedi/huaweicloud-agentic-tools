@@ -1,4 +1,4 @@
-# Module 8 - unified financial management
+# Unified financial management
 # Two halves: multi-EP master + per-account TMS tagging.
 
 variable "environment" {

@@ -1,3 +1,10 @@
+terraform {
+  required_version = ">= 1.6.3"
+  required_providers {
+    huaweicloud = { source = "huaweicloud/huaweicloud", version = "~> 1.87" }
+  }
+}
+
 # Minimal CTS tracker - enables the account's system tracker without any OBS or
 # LTS transfer. Audit events are still recorded (CTS console, ~7-day retention)
 # so the account pays no OBS/LTS storage charges. Deployed per-account by the

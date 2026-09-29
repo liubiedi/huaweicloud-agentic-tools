@@ -1,4 +1,4 @@
-# Module 5 - unified security protection
+# Unified security protection
 # Lives in the security account. SecMaster Pattern C (security-only) by default.
 
 variable "environment" {

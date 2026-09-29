@@ -1,4 +1,4 @@
-# Module 7 - unified O&M monitoring
+# Unified O&M monitoring
 # Lives in lz-infra (same account as module 6). SMN central topic + CES one-click.
 
 variable "environment" {

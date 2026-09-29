@@ -1,13 +1,13 @@
-# Module 12 - org-wide LTS log aggregation (log converge) + OBS archive.
+# Org-wide LTS log aggregation (log converge) + OBS archive.
 #
 # Runs in the LTS delegated-admin account (Organizations TrustedServices row
-# service.LTS -> DelegatedAdmin). The provider MUST use the assume_role block
+# Service.LTS -> DelegatedAdmin). The provider MUST use the assume_role block
 # (not agency-token mode): this module creates an OBS bucket, which under
-# agency-token mode would land in the MASTER account.
+# Agency-token mode would land in the MASTER account.
 #
 # Member log streams (sources) converge into target groups/streams created here
 # (hot retention converged_retention_days), and each target group transfers to
-# the archive OBS bucket on a cycle (retention archive_retention_days).
+# The archive OBS bucket on a cycle (retention archive_retention_days).
 
 variable "enable_log_aggregation" {
   type        = bool

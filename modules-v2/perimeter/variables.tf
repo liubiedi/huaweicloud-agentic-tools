@@ -1,11 +1,11 @@
-# Module 4 - data perimeter (Service Control Policies) + TMS predefined tags.
+# Data perimeter (Service Control Policies) + TMS predefined tags.
 #
 # Two independent functions, selected by flags:
 #   - SCPs            : enable_scps = true (org-level; attaches at attach_target_id)
 #   - Predefined tags : enable_predefined_tags = true (per-account TMS dictionary)
 #
 # The SCPs are the Landing Zone identity guardrails. Each policy in var.scps
-# is self-contained: enabled / enforce / name + that policy's own settings.
+# Is self-contained: enabled / enforce / name + that policy's own settings.
 # Authored as v5.0 JSON per the Huawei Organizations SCP reference.
 
 variable "environment" {
@@ -200,8 +200,8 @@ variable "scps" {
 
 # ---- Config (RMS) org setup ----
 # Set enable_config = true (with the module called under the Config admin
-# account's provider) to create the resource recorder + org aggregator. Left
-# off for the SCP and tags-only invocations.
+# Account's provider) to create the resource recorder + org aggregator. Left
+# Off for the SCP and tags-only invocations.
 
 variable "home_region" {
   type        = string
@@ -269,7 +269,7 @@ variable "conformance_packs" {
 
 # ---- Predefined tags (TMS tag dictionary) ----
 # Set enable_predefined_tags = true (with enable_scps = false) to invoke this
-# module purely as a per-account tag-dictionary writer.
+# Module purely as a per-account tag-dictionary writer.
 
 variable "enable_predefined_tags" {
   type        = bool

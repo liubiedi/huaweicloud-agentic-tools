@@ -1,6 +1,6 @@
-# Module 6 - unified compliance audit
+# Unified compliance audit
 # Lives in logging account (lz-infra). Owns: org CTS tracker + 3 OBS buckets +
-# log-infra KMS + LTS infrastructure.
+# Log-infra KMS + LTS infrastructure.
 
 variable "environment" {
   type    = string
@@ -18,7 +18,7 @@ variable "account_name" {
 }
 
 # Explicit, required names. OBS bucket names must be globally unique across all
-# of Huawei Cloud, so there is no safe default/fallback - each must be provided.
+# Of Huawei Cloud, so there is no safe default/fallback - each must be provided.
 variable "audit_bucket_name" {
   type        = string
   description = "Name for the CTS audit OBS bucket (globally unique)."
@@ -67,8 +67,8 @@ variable "kms_pending_days" {
 
 # Key-event notifications on the org tracker: each entry is one notification
 # (customized operation type) whose operations blocks list the (service,
-# resource, trace names) triples that fire it. All entries publish to
-# cts_notification_topic_urn (the CTS-admin account's ops SMN topic).
+# Resource, trace names) triples that fire it. All entries publish to
+# Cts_notification_topic_urn (the CTS-admin account's ops SMN topic).
 variable "cts_notifications" {
   type = list(object({
     name        = string

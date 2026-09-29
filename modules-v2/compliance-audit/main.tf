@@ -1,5 +1,12 @@
+terraform {
+  required_version = ">= 1.6.3"
+  required_providers {
+    huaweicloud = { source = "huaweicloud/huaweicloud", version = "~> 1.87" }
+  }
+}
+
 locals {
   # Substitute the {account-name} token with the account this module deploys into.
-  audit_bucket_name   = replace(var.audit_bucket_name, "{account-name}", var.account_name)
-  kms_audit_alias     = replace(var.kms_audit_alias, "{account-name}", var.account_name)
+  audit_bucket_name = replace(var.audit_bucket_name, "{account-name}", var.account_name)
+  kms_audit_alias   = replace(var.kms_audit_alias, "{account-name}", var.account_name)
 }

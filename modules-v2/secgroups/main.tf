@@ -1,3 +1,10 @@
+terraform {
+  required_version = ">= 1.6.3"
+  required_providers {
+    huaweicloud = { source = "huaweicloud/huaweicloud", version = "~> 1.87" }
+  }
+}
+
 # Workload security groups. Called once per member account; groups and rules
 # are fully declarative inputs. Security groups are region-scoped (no VPC
 # binding); attachment to ECS network interfaces is a workload-team step.

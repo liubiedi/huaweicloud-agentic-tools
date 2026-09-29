@@ -1,4 +1,20 @@
-# Module 3 - network planning
+terraform {
+  required_version = ">= 1.6.3"
+
+  required_providers {
+    huaweicloud = {
+      source  = "huaweicloud/huaweicloud"
+      version = "~> 1.87"
+      # huaweicloud        = the account this instance deploys into (hub OR a spoke)
+      # huaweicloud.owner  = the ER OWNER (hub) - used by spoke association/propagation,
+      #                      which manage the hub's route tables (cross-account).
+      configuration_aliases = [huaweicloud.owner]
+    }
+    time = { source = "hashicorp/time", version = ">= 0.9" }
+  }
+}
+
+# Network planning
 #
 # Locals + section toggle plumbing. Hub resources in hub.tf, spoke in spoke.tf.
 
@@ -30,6 +46,6 @@ check "spoke_inputs_provided" {
 }
 
 # (Removed check "hub_er_required_for_spoke": in the combined single-apply model
-# spoke_er_id = module.network_hub.er_id is created in the same run, so it's
-# unknown at plan and the check only produced "known after apply" noise. A missing
+# Spoke_er_id = module.network_hub.er_id is created in the same run, so it's
+# Unknown at plan and the check only produced "known after apply" noise. A missing
 # ER would fail the spoke ER attachment anyway.)

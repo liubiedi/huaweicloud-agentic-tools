@@ -1,8 +1,8 @@
-# Module 3 - network planning
+# Network planning
 #
 # Single module with two halves (hub + spoke) controlled by enable flags.
 # Env calls it once with enable_hub=true (in network-hub account) and N times
-# with enable_spoke=true (per spoke account).
+# With enable_spoke=true (per spoke account).
 
 variable "environment" {
   type    = string
@@ -70,7 +70,7 @@ variable "spoke_private_supernet" {
 
 # ---- Explicit resource names (surfaced in the Excel M3 sheet) ----
 # Every named hub singleton takes its name from these. Defaults preserve the
-# historical lz-hub-* literals so an unset value is non-breaking.
+# Historical lz-hub-* literals so an unset value is non-breaking.
 
 variable "er_name" {
   type        = string
@@ -109,8 +109,8 @@ variable "er_auto_accept_shared_attachments" {
 }
 
 # ---- ER attachments + routing (explicit, attachment-centric) ----
-# attachment_type discriminates how attachment/next_hop names resolve to an
-# attachment_id: vpc -> er_attachments[name]; cfw -> CFW ER-mode attachment.
+# Attachment_type discriminates how attachment/next_hop names resolve to an
+# Attachment_id: vpc -> er_attachments[name]; cfw -> CFW ER-mode attachment.
 # (Spokes self-wire their own associations/propagations - see spoke.tf.)
 
 variable "er_attachments" {
@@ -175,9 +175,9 @@ variable "subnet_dns" {
 
 # ---- VPC flow logs (hub + spoke, uniform) ----
 # One LTS group + stream per VPC, both named '<vpc>-flowlog' (per-VPC groups so
-# multiple spokes in one account never race on a group name), plus a
-# huaweicloud_vpc_flow_log capturing ALL traffic. Aggregate to the archive
-# bucket via 06_Observability LogConverge rows (SourceGroup/Stream = <vpc>-flowlog).
+# Multiple spokes in one account never race on a group name), plus a
+# Huaweicloud_vpc_flow_log capturing ALL traffic. Aggregate to the archive
+# Bucket via 06_Observability LogConverge rows (SourceGroup/Stream = <vpc>-flowlog).
 
 variable "enable_vpc_flow_logs" {
   type        = bool
@@ -192,12 +192,12 @@ variable "flow_log_retention_days" {
 }
 
 # Hub VPC default-route tables are AUTO-wired (snat_vpc_attachment +
-# spoke_private_supernet): the SNAT VPC gets 0.0.0.0/0 -> its NAT gateway and
+# Spoke_private_supernet): the SNAT VPC gets 0.0.0.0/0 -> its NAT gateway and
 # <supernet> -> ER; every other ER-attached hub VPC gets 0.0.0.0/0 -> ER.
 
 # Spokes self-wire their ER association/propagation against the hub route tables
 # (see spoke.tf) - no cross-account attachment discovery is needed because the
-# hub + spokes deploy in the same apply.
+# Hub + spokes deploy in the same apply.
 
 # ---- Cloud Firewall ----
 
@@ -227,9 +227,9 @@ variable "cfw_ips_patch_enabled" {
 }
 
 # CFW billing - the only hub resource with a billing choice (all others are
-# pay-per-use). "subscription" requires cfw_period_unit/cfw_period; auto_renew
-# applies only to subscription. The module maps these to the provider's
-# postPaid/prePaid values.
+# Pay-per-use). "subscription" requires cfw_period_unit/cfw_period; auto_renew
+# Applies only to subscription. The module maps these to the provider's
+# PostPaid/prePaid values.
 variable "cfw_charging_mode" {
   type        = string
   default     = "pay-per-use"
@@ -319,7 +319,7 @@ variable "cfw_lts_attack_stream_name" {
 }
 
 # Optional override: reuse a pre-existing LTS GROUP instead of creating one. The
-# three streams are still created in it. Blank = hub creates the group too.
+# Three streams are still created in it. Blank = hub creates the group too.
 variable "cfw_lts_group_id" {
   type        = string
   default     = ""
@@ -328,7 +328,7 @@ variable "cfw_lts_group_id" {
 
 # ---- EIPs (multi-instance, dedicated bandwidth each) ----
 # NAT (via SNAT/DNAT) and ELBs reference an EIP by name. All EIPs pay-per-use;
-# billed_by selects bandwidth vs traffic metering.
+# Billed_by selects bandwidth vs traffic metering.
 
 variable "eips" {
   type = list(object({
@@ -457,7 +457,7 @@ variable "spoke_vpc_cidr" {
 }
 
 # Explicit spoke resource names. Blank = derive from spoke_vpc_name (historical
-# behaviour), so unset values are non-breaking.
+# Behaviour), so unset values are non-breaking.
 variable "spoke_er_attachment_name" {
   type        = string
   default     = ""
@@ -501,8 +501,8 @@ variable "spoke_vpc_tags" {
 }
 
 # Spoke ER self-wiring (hub + spokes deploy in one apply). The hub passes its
-# route-table id map; the spoke auto-associates to inbound_route_table and
-# auto-propagates into outbound_route_table (the same two vars the hub uses).
+# Route-table id map; the spoke auto-associates to inbound_route_table and
+# Auto-propagates into outbound_route_table (the same two vars the hub uses).
 variable "hub_route_table_ids" {
   type        = map(string)
   default     = {}

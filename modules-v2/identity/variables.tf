@@ -1,12 +1,12 @@
-# Module 2 - identity and permission management
+# Identity and permission management
 #
 # Two halves controlled by enable_* flags:
 #   - enable_identity_center_content : run once in master (IC users/groups/PS)
 #   - enable_iam_baseline            : run per-account (IAM hardening + agencies)
 #
 # When called per-account, set enable_iam_baseline = true and leave
-# enable_identity_center_content = false. The env layer calls this module
-# multiple times with different provider aliases and different enable flags.
+# Enable_identity_center_content = false. The env layer calls this module
+# Multiple times with different provider aliases and different enable flags.
 
 variable "environment" {
   type        = string
