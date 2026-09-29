@@ -60,10 +60,10 @@ variable "audit_retention_days" {
 
 variable "kms_pending_days" {
   type    = number
-  default = 7 # Day-1 default; production should bump to 30
+  default = 7 # production typically uses 30
 }
 
-# ---- CTS extensions (deferred - default off) ----
+# ---- CTS extensions (default off) ----
 
 # Key-event notifications on the org tracker: each entry is one notification
 # (customized operation type) whose operations blocks list the (service,

@@ -59,7 +59,7 @@ variable "custom_alarm_rules" {
   default = []
 }
 
-# ---- AOM / FGS (deferred - default off) ----
+# ---- AOM / FGS (default off) ----
 
 variable "enable_aom" {
   type    = bool

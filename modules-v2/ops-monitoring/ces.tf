@@ -1,11 +1,9 @@
-# CES alarm scaffolding.
+# CES alarms.
 #
-# Note: huaweicloud_ces_one_click_alarm takes a `one_click_alarm_id` (a UUID
-# returned by Huawei's console after enabling a one-click bundle) and a
-# `dimension_names` block. Namespace strings like SYS.ECS are not direct
-# inputs. Day-1 ships this section as a custom-alarm placeholder; populate
-# var.custom_alarm_rules with hand-built rules instead, or wire the
-# one-click ID flow once known.
+# huaweicloud_ces_one_click_alarm takes a `one_click_alarm_id` - a UUID the
+# console returns after enabling a one-click bundle - and a `dimension_names`
+# block; namespace strings such as SYS.ECS are not direct inputs. Hand-built
+# rules go in var.custom_alarm_rules.
 
 resource "huaweicloud_ces_alarmrule" "custom" {
   for_each = { for r in var.custom_alarm_rules : r.name => r }
@@ -94,7 +92,3 @@ resource "huaweicloud_ces_one_click_alarm" "this" {
   }
 }
 
-# ---- Deferred (schema verification needed on first apply) ----
-#
-# huaweicloud_ces_notification_mask - requires resource_type + mask_type +
-#                                     schema checking before first use

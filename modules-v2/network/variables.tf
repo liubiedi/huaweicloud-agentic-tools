@@ -68,9 +68,9 @@ variable "spoke_private_supernet" {
   description = "Supernet covering all spoke + hub private CIDRs. The SNAT VPC auto-gets a <supernet> -> ER route (return path to spokes; more specific than its 0.0.0.0/0 -> NAT default). Blank = no return route."
 }
 
-# ---- Explicit resource names (surfaced in the Excel M3 sheet) ----
-# Every named hub singleton takes its name from these. Defaults preserve the
-# historical lz-hub-* literals so an unset value is non-breaking.
+# ---- Explicit resource names ----
+# Every named hub singleton takes its name from these. Unset falls back to the
+# lz-hub-* default, so leaving one blank is non-breaking.
 
 variable "er_name" {
   type        = string
@@ -456,8 +456,8 @@ variable "spoke_vpc_cidr" {
   default = ""
 }
 
-# Explicit spoke resource names. Blank = derive from spoke_vpc_name (historical
-# behaviour), so unset values are non-breaking.
+# Explicit spoke resource names. Blank derives the name from spoke_vpc_name,
+# so leaving one unset is non-breaking.
 variable "spoke_er_attachment_name" {
   type        = string
   default     = ""
@@ -518,7 +518,7 @@ variable "spoke_er_id" {
 }
 
 
-# ---- Optional / deferred features (default disabled) ----
+# ---- Optional features (default disabled) ----
 
 variable "enable_dns" {
   type    = bool
@@ -550,4 +550,4 @@ variable "enable_traffic_mirror" {
 }
 
 # Detailed config for the gated features lives in the respective *.tf files
-# (dns.tf, waf.tf, etc. - extend per modules-day1-resources.md).
+# (dns.tf, waf.tf, and so on).

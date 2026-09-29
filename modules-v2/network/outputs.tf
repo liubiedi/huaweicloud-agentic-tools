@@ -5,8 +5,8 @@ output "er_id" {
   value       = local.hub_enabled ? huaweicloud_er_instance.hub[0].id : null
 }
 
-# er_urn removed - huaweicloud_er_instance does not export `urn` attribute.
-# RAM share builds the resource URN string manually from id + region + account.
+# huaweicloud_er_instance exports no `urn` attribute, so the RAM share builds
+# the resource URN string from id + region + account.
 
 output "er_route_table_ids" {
   description = "Map of route table name -> ID"

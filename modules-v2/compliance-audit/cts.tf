@@ -29,7 +29,7 @@ resource "huaweicloud_cts_tracker" "org" {
 #
 # One customized notification per var.cts_notifications entry: a trace matching
 # any of its (service, resource, trace_names) blocks publishes to the ops SMN
-# topic. See docs/engineering-notes.md for trace-name and scope rules.
+# topic.
 resource "huaweicloud_cts_notification" "this" {
   for_each = { for n in var.cts_notifications : n.name => n }
 
@@ -48,4 +48,3 @@ resource "huaweicloud_cts_notification" "this" {
   }
 }
 
-# huaweicloud_cts_data_tracker stays deferred (cts_data_trackers, default off).
