@@ -95,7 +95,7 @@ resource "huaweicloud_identitycenter_permission_set" "this" {
   instance_id      = var.identity_center_instance_id
   name             = each.key
   description      = each.value.description
-  session_duration = each.value.session_duration
+  session_duration = coalesce(each.value.session_duration, var.session_duration)
 }
 
 # --- System policy attachments ---
@@ -134,11 +134,16 @@ resource "huaweicloud_identitycenter_account_assignment" "this" {
 
 # --- Permission-set provisioning ---
 
+# Note: One provisioning per account and permission set, however many groups share it.
 resource "huaweicloud_identitycenter_provision_permission_set" "this" {
   for_each = local.ic_enabled ? {
-    for a in var.account_assignments :
-    "${a.account_id}__${a.permission_set}" => a
-    # Unique account and permission-set pairs
+    for pair in distinct([
+      for a in var.account_assignments : {
+        account_id     = a.account_id
+        permission_set = a.permission_set
+      }
+    ]) :
+    "${pair.account_id}__${pair.permission_set}" => pair
   } : {}
 
   instance_id       = var.identity_center_instance_id

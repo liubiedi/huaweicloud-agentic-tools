@@ -12,13 +12,13 @@ locals {
 resource "huaweicloud_identity_password_policy" "this" {
   count = local.iam_enabled ? 1 : 0
 
-  minimum_password_length               = lookup(var.iam_password_policy, "minimum_password_length", 12)
-  password_validity_period              = lookup(var.iam_password_policy, "password_validity_period", 90)
-  number_of_recent_passwords_disallowed = lookup(var.iam_password_policy, "password_reuse_prevention", 1)
-  minimum_password_age                  = lookup(var.iam_password_policy, "minimum_password_age", 0)
-  password_char_combination             = lookup(var.iam_password_policy, "password_char_combination", 2)
-  maximum_consecutive_identical_chars   = lookup(var.iam_password_policy, "maximum_consecutive_identical_chars", 0)
-  password_not_username_or_invert       = lookup(var.iam_password_policy, "password_not_username_or_invert", true)
+  minimum_password_length               = var.iam_password_policy.minimum_password_length
+  password_validity_period              = var.iam_password_policy.maximum_password_age
+  number_of_recent_passwords_disallowed = var.iam_password_policy.password_reuse_prevention
+  minimum_password_age                  = var.iam_password_policy.minimum_password_age
+  password_char_combination             = var.iam_password_policy.password_char_combination
+  maximum_consecutive_identical_chars   = var.iam_password_policy.maximum_consecutive_identical_chars
+  password_not_username_or_invert       = var.iam_password_policy.password_not_username_or_invert
 }
 
 # --- Login policy ---
@@ -26,13 +26,13 @@ resource "huaweicloud_identity_password_policy" "this" {
 resource "huaweicloud_identity_login_policy" "this" {
   count = local.iam_enabled ? 1 : 0
 
-  account_validity_period    = lookup(var.iam_login_policy, "account_validity_period", 0)
-  custom_info_for_login      = lookup(var.iam_login_policy, "custom_info_for_login", "")
-  lockout_duration           = lookup(var.iam_login_policy, "lockout_duration", 15)
-  login_failed_times         = lookup(var.iam_login_policy, "login_failed_times", 5)
-  period_with_login_failures = lookup(var.iam_login_policy, "period_with_login_failures", 15)
-  session_timeout            = lookup(var.iam_login_policy, "session_timeout", 60)
-  show_recent_login_info     = lookup(var.iam_login_policy, "show_recent_login_info", true)
+  account_validity_period    = var.iam_login_policy.account_validity_period
+  custom_info_for_login      = var.iam_login_policy.custom_info_for_login
+  lockout_duration           = var.iam_login_policy.lockout_duration
+  login_failed_times         = var.iam_login_policy.login_failed_times
+  period_with_login_failures = var.iam_login_policy.period_with_login_failures
+  session_timeout            = var.iam_login_policy.session_timeout
+  show_recent_login_info     = var.iam_login_policy.show_recent_login_info
 }
 
 # --- Operation protection policy ---
@@ -40,13 +40,13 @@ resource "huaweicloud_identity_login_policy" "this" {
 resource "huaweicloud_identity_protection_policy" "this" {
   count = local.iam_enabled ? 1 : 0
 
-  protection_enabled = lookup(var.iam_protection_policy, "operation_protection", true)
+  protection_enabled = var.iam_protection_policy.operation_protection
 
   self_management {
-    access_key = lookup(var.iam_protection_policy, "self_management", true)
-    password   = lookup(var.iam_protection_policy, "self_management", true)
-    mobile     = lookup(var.iam_protection_policy, "self_management", true)
-    email      = lookup(var.iam_protection_policy, "self_management", true)
+    access_key = var.iam_protection_policy.self_management
+    password   = var.iam_protection_policy.self_management
+    mobile     = var.iam_protection_policy.self_management
+    email      = var.iam_protection_policy.self_management
   }
 }
 

@@ -82,7 +82,3 @@ variable "cts_notification_topic_urn" {
   description = "SMN topic URN that cts_notifications publish to. Required when cts_notifications is non-empty."
 }
 
-variable "cts_data_trackers" {
-  type    = any
-  default = []
-}

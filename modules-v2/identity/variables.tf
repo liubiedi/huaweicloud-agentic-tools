@@ -43,7 +43,7 @@ variable "identity_center_instance_id" {
 variable "session_duration" {
   type        = string
   default     = "PT8H"
-  description = "ISO-8601 duration for permission set sessions. PT8H = 8 hours."
+  description = "ISO-8601 session duration for any permission set that does not set its own. PT8H = 8 hours."
 }
 
 variable "groups" {
@@ -77,7 +77,7 @@ variable "users" {
 variable "permission_sets" {
   type = map(object({
     description      = string
-    session_duration = optional(string, "PT8H")
+    session_duration = optional(string)
     # System policy names (v2012)
     system_policies = optional(list(string), [])
     # Identity policy names (v5)
@@ -93,11 +93,11 @@ variable "permission_sets" {
       system_policies = ["Tenant Guest", "Server Administrator"]
     }
     LzSecurityAuditor = {
-      description     = "Read-only access to security services and logs"
+      description     = "Full IAM administration (Security Administrator) - not read-only"
       system_policies = ["Security Administrator"]
     }
     LzBillingViewer = {
-      description     = "Billing and cost management read-only"
+      description     = "Full Billing Center administration (BSS Administrator) - not read-only"
       system_policies = ["BSS Administrator"]
     }
     LzReadOnly = {
@@ -121,7 +121,7 @@ variable "account_assignments" {
 variable "registered_regions" {
   type        = list(string)
   default     = []
-  description = "Regions where Identity Center can issue session credentials."
+  description = "Not used by this module. Accepted so existing callers stay valid; setting it changes nothing."
 }
 
 # --- Identity Center policies ---
@@ -155,14 +155,17 @@ variable "ic_mfa_management" {
 
 variable "iam_password_policy" {
   type = object({
-    minimum_password_length   = optional(number, 12)
-    maximum_password_age      = optional(number, 90)
-    password_reuse_prevention = optional(number, 12)
-    minimum_password_age      = optional(number, 0)
-    password_requirements     = optional(string, "Must contain at least 2 of the following 4 character types: uppercase letters, lowercase letters, numbers, special characters")
+    minimum_password_length             = optional(number, 12)
+    maximum_password_age                = optional(number, 90)
+    password_reuse_prevention           = optional(number, 12)
+    minimum_password_age                = optional(number, 0)
+    password_char_combination           = optional(number, 2)
+    maximum_consecutive_identical_chars = optional(number, 0)
+    password_not_username_or_invert     = optional(bool, true)
   })
   default     = {}
-  description = "Per-account v3 IAM password policy."
+  nullable    = false
+  description = "Per-account v3 IAM password policy. maximum_password_age is the password validity period in days; password_char_combination is how many of the four character types a password must contain."
 }
 
 variable "iam_login_policy" {
@@ -176,18 +179,18 @@ variable "iam_login_policy" {
     show_recent_login_info     = optional(bool, true)
   })
   default     = {}
+  nullable    = false
   description = "Per-account v3 IAM login policy."
 }
 
 variable "iam_protection_policy" {
   type = object({
     operation_protection = optional(bool, true)
-    attributes           = optional(list(string), ["email", "mobile"])
     self_management      = optional(bool, true)
-    self_verification    = optional(bool, true)
   })
   default     = {}
-  description = "Per-account v3 IAM protection policy (step-up MFA for high-risk operations)."
+  nullable    = false
+  description = "Per-account v3 IAM protection policy (step-up MFA for high-risk operations). self_management applies to access keys, password, mobile and email alike."
 }
 
 variable "service_agencies" {
