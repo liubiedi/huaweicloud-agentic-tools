@@ -4,8 +4,8 @@ Platform lessons, live-API quirks, error codes, and design rationale stripped
 out of the handover HCL. The shipped modules and environments carry only
 concise block descriptions (see the comment-hygiene rule in CLAUDE.md); the
 full "why" lives here, anchored by file and resource. This file is outside
-every export path (the artifact ships modules-v2, the customer's envs tree, and
-huawei-lz/handover-docs only).
+every export path (the artifact ships the modules, the customer's envs tree, and the
+export profile's handover docs only).
 
 Add to this file whenever a change would otherwise grow a lesson/caveat
 comment in a shipped tree.
