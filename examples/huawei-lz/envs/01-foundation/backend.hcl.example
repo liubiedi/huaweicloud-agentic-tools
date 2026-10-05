@@ -1,9 +1,0 @@
-# Copy to backend.hcl and fill in.
-# Pass with: terraform init -backend-config=backend.hcl
-
-bucket = "my-org-lz-tfstate"
-region = "cn-east-3"
-
-endpoints = {
-  s3 = "https://obs.cn-east-3.myhuaweicloud.com"
-}
