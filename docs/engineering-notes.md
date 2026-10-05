@@ -4,7 +4,7 @@ Platform lessons, live-API quirks, error codes, and design rationale stripped
 out of the handover HCL. The shipped modules and environments carry only
 concise block descriptions (see the comment-hygiene rule in CLAUDE.md); the
 full "why" lives here, anchored by file and resource. This file is outside
-every export path (the artifact ships modules-v2, envs-frasers, and
+every export path (the artifact ships modules-v2, the customer's envs tree, and
 huawei-lz/handover-docs only).
 
 Add to this file whenever a change would otherwise grow a lesson/caveat
@@ -26,7 +26,7 @@ comment in a shipped tree.
 - **time_sleep.ram_share_propagation**: RAM association is asynchronous - a spoke attaching seconds after its account becomes a principal is denied common.01010013 er:instances:createVpcAttachment (hit live 2026-07). 60s sleep, replaced when the principal set changes.
 - **er_flow_log count**: gate on plan-known conditions only; counting on the apply-time group id breaks plan.
 - **Auto-wiring ordering**: the CFW association + inbound static route reference east_west_firewall_er_attachment_id (computed), which forces the EW CFW attachment to exist before route-table wiring - no explicit depends_on needed.
-- **er_static_route.extra_supernet_to_cfw (\<supernet\> -> CFW on the hybrid tables)**: looks redundant next to extra_to_cfw's 0.0.0.0/0 -> CFW (same table, same next hop) and MUST NOT be "cleaned up" as such. The hybrid tables are what the VPN gateway attachment associates to, so their routes are what gets advertised to the on-prem peer; a default route is frequently not advertised or not accepted by the peer device, leaving on-prem with no path back into the cloud even though the ER side looks correct. The explicit spoke_private_supernet route is the one the peer reliably learns. It is also the safety net once propagation is enabled on a hybrid table: a propagated per-VPC prefix would otherwise beat the 0/0 default and bypass inspection. Auto-wired off spoke_private_supernet + cfw_default_route_tables (no toggle) so every customer gets it. Adopted into the frasers state 2026-07-29 (route was created in the console first; id 9e416b46-cb9c-44d6-9101-6ecab8eb98bd).
+- **er_static_route.extra_supernet_to_cfw (\<supernet\> -> CFW on the hybrid tables)**: looks redundant next to extra_to_cfw's 0.0.0.0/0 -> CFW (same table, same next hop) and MUST NOT be "cleaned up" as such. The hybrid tables are what the VPN gateway attachment associates to, so their routes are what gets advertised to the on-prem peer; a default route is frequently not advertised or not accepted by the peer device, leaving on-prem with no path back into the cloud even though the ER side looks correct. The explicit spoke_private_supernet route is the one the peer reliably learns. It is also the safety net once propagation is enabled on a hybrid table: a propagated per-VPC prefix would otherwise beat the 0/0 default and bypass inspection. Auto-wired off spoke_private_supernet + cfw_default_route_tables (no toggle) so every customer gets it. Adopted into a live customer state 2026-07-29 (the route was created in the console first).
 - A trailing "Optional / deferred" comment block (DNS/WAF/DC/VPN/client-VPN/traffic-mirror resource lists referencing modules-day1-resources.md) was removed; those capabilities live in their own modules.
 
 ## cfw module
@@ -42,7 +42,7 @@ comment in a shipped tree.
 ### attack_defense.tf
 - **advanced_ips_rule is action-style**: it sets server-side state once; the provider tracks no drift (re-apply reasserts). `param` is required+create-only and is carried through from the rule's current value ("{}" fallback for blank).
 - Antivirus protocol enum: 0 HTTP, 1 SMTP, 2 POP3, 3 IMAP4, 4 FTP, 5 SMB, 6 Malicious Access Control.
-- **reverse-shell defense is EP-scoped** (added 2026-07-23, Frasers): the `cfw_advanced_ips_rules` data source only sends `enterprise_project_id` when set (Go source), and the CFW list API defaults to the DEFAULT project ("0") when it's omitted. A firewall in a NON-default EP (e.g. Frasers `fpcs-sg-prd-cs-cfw-01` in `fpcs-sg-prd-ep-cs`) then returns an EMPTY advanced-IPS list -> `for_each` empty -> ZERO reverse_shell resources created, a SILENT no-op (toggle true, nothing enforced). Symptom: anti-virus (object_id-scoped) works but reverse-shell doesn't. Fix: `enterprise_project_id` var on the module, passed ONLY to the DATA SOURCE that enumerates the rules; the env resolves it from `enterprise_project_name` via a `huaweicloud_enterprise_project` data source. Do NOT set it on the reverse_shell RESOURCE: it is NonUpdatable there, and rules created before the fix have it empty, so a re-apply fails with "enterprise_project_id can't be updated, -> <id>" (seen live 2026-07-25). The resource targets a rule by ips_rule_id + object_id, so it needs no EP. ips_rule_type enum: 0 sensitive-directory-scan, 1 reverse-shell.
+- **reverse-shell defense is EP-scoped** (added 2026-07-23): the `cfw_advanced_ips_rules` data source only sends `enterprise_project_id` when set (Go source), and the CFW list API defaults to the DEFAULT project ("0") when it's omitted. A firewall in a NON-default EP (e.g. `lz-sg-prd-cfw-01` in `lz-sg-prd-ep-security`) then returns an EMPTY advanced-IPS list -> `for_each` empty -> ZERO reverse_shell resources created, a SILENT no-op (toggle true, nothing enforced). Symptom: anti-virus (object_id-scoped) works but reverse-shell doesn't. Fix: `enterprise_project_id` var on the module, passed ONLY to the DATA SOURCE that enumerates the rules; the env resolves it from `enterprise_project_name` via a `huaweicloud_enterprise_project` data source. Do NOT set it on the reverse_shell RESOURCE: it is NonUpdatable there, and rules created before the fix have it empty, so a re-apply fails with "enterprise_project_id can't be updated, -> <id>" (seen live 2026-07-25). The resource targets a rule by ips_rule_id + object_id, so it needs no EP. ips_rule_type enum: 0 sensitive-directory-scan, 1 reverse-shell.
 - **reverse-shell action** is `var.reverse_shell_action`, validated to the `action` enum: 0 log only, 1 block session, 2 block IP. Default 2 (block IP) since 2026-08-04, at a customer's request (was 1 = block session); it was hardcoded until 2026-10 and became a variable with the same default, so no existing plan changes. Changing it replaces every assertion (see `enable_force_new` below).
 - **`enable_force_new = "true"` is REQUIRED on reverse_shell** (added with the action change): every argument is NonUpdatable and the provider's `config.FlexibleForceNew` default is to FAIL THE PLAN, not replace — changing the action without it errors `action can't be updated, 1 -> 2` (hit live 2026-08-04, same shape as the `enterprise_project_id` failure above). `enable_force_new` is an undocumented per-resource string attribute (`"true"`/`"false"`, validated) present on most one-time-action resources; it flips CustomizeDiff to `d.ForceNew(k)`. Prefer it over the PROVIDER-level `enable_force_new` bool, which would apply to every resource in that provider config. Safe here because the resource is action-style: Delete makes NO API call (provider source returns only a warning), so a replacement is state-removal + one POST that overwrites the server-side setting — the rule is never unset, and nothing else in the CFW is touched. Plan shape: 1 add / 1 destroy per type-1 advanced IPS rule the data source returns.
 
@@ -69,8 +69,8 @@ comment in a shipped tree.
   platform's own operation names. CTS accepts any string silently - a
   misspelled or guessed name creates a notification that never fires and
   never errors. Take names from the `huaweicloud_cts_operations` data source
-  (per service/resource), not from memory or blog posts. Frasers KMS/VPC names
-  were taken from that source.
+  (per service/resource), not from memory or blog posts. The KMS/VPC names in
+  use were taken from that source.
 - Notification `name` accepts letters, digits, underscore and Chinese only.
   A hyphen fails at create with `cts.0007 "Notification name verify failed"`
   (hit live 2026-09-18 with `kms-key-lifecycle`); LZR-037 now rejects it
@@ -82,8 +82,8 @@ comment in a shipped tree.
   one operations block per resource type, same notification.
 - Notifications are account-level (no tracker argument in the API/provider),
   created in the CTS-admin account next to the org tracker. Canary 2026-09-18
-  (throwaway SG create/delete in HW-FPCS-Infra): the member traces DO reach the
-  admin account - they appear in Sec's CTS-owned LTS stream `CTS/system-trace`
+  (throwaway SG create/delete in the infra member account): the member traces DO reach the
+  admin account - they appear in the security account's CTS-owned LTS stream `CTS/system-trace`
   within a minute - but the admin's `/v3/traces` API lists only local traces.
   CONFIRMED org-wide 2026-09-18: the subscribers received the email for the
   Infra canary, so a notification in the CTS-admin account fires on member
@@ -95,7 +95,7 @@ comment in a shipped tree.
   `huaweicloud_cts_tracker` takes only `lts_enabled = true`; the service creates
   its own group `CTS` and stream `system-trace` (the tracker's `log_group_name`
   attribute is computed, never an input). Found 2026-09-18: the module's audit
-  group/stream in frasers had 0 logs in 24 h while `CTS/system-trace` had 113 in
+  group/stream in a live tree had 0 logs in 24 h while `CTS/system-trace` had 113 in
   1 h across four accounts. Consequence: the LogConverge "Org CTS audit events"
   row converges an empty stream and the real org audit log is neither converged
   nor archived. FIXED 2026-09-18: `lts.tf` deleted, outputs now read
@@ -114,7 +114,7 @@ comment in a shipped tree.
 
 ### spoke.tf
 - **Attachment tag updates**: post-create tag changes call er:tags:batchOperation, which a MEMBER is not authorized to run on an attachment of the hub's shared ER (common.01010013) - same owner-only restriction as associations/propagations. Hence ignore_changes=[tags].
-- **vpc_subnet.spoke primary_dns/secondary_dns gated on spoke_er_attach_enabled**: the hub resolver (08-network-dns INBOUND endpoint, addressed by 05_Network Settings.subnet_dns_servers) is only reachable over the ER. An UNATTACHED spoke has no route to it, so pointing its DHCP there black-holes ALL DNS in that VPC - not just internal names, since every query goes to an unreachable IP. Left unset, the provider's buildSubnetDNSList applies the region's built-in private resolver at CREATE (ap-southeast-3 -> 100.125.1.250 / 100.125.128.250), so an isolated spoke still resolves public names. Discovered on frasers 2026-07-30: fpcs-sg-sandbox-ai-vpc01 had subnet DNS 10.134.12.2/.3 with no ER attachment, no routes and no peering (the sandbox account is not even in RAMSharePrincipals, so the ER is not shared to it), leaving the VPC with no working DNS at all.
+- **vpc_subnet.spoke primary_dns/secondary_dns gated on spoke_er_attach_enabled**: the hub resolver (08-network-dns INBOUND endpoint, addressed by 05_Network Settings.subnet_dns_servers) is only reachable over the ER. An UNATTACHED spoke has no route to it, so pointing its DHCP there black-holes ALL DNS in that VPC - not just internal names, since every query goes to an unreachable IP. Left unset, the provider's buildSubnetDNSList applies the region's built-in private resolver at CREATE (ap-southeast-3 -> 100.125.1.250 / 100.125.128.250), so an isolated spoke still resolves public names. Discovered on a live tree 2026-07-30: a sandbox spoke VPC had its subnet DNS on the hub resolver IPs with no ER attachment, no routes and no peering (the sandbox account is not even in RAMSharePrincipals, so the ER is not shared to it), leaving the VPC with no working DNS at all.
   - **CAVEAT - the guard does not repair already-deployed subnets.** primary_dns/secondary_dns/dns_list are Optional+**Computed**, so a null in config means "keep the current value": terraform reports no changes and never self-corrects an existing subnet. buildSubnetDNSList only supplies the regional default on CREATE; the UPDATE path just forwards d.Get("primary_dns") (empty string) and does not re-derive. Repair an existing black-holed subnet out of band (console/API set to the regional resolver) - because config is null and the attribute is Computed, terraform then adopts the live value permanently with no drift.
 
 ## envs (scaffold statics)
@@ -173,24 +173,24 @@ Two resources cannot be converted at all:
 After a console conversion, persist it with `terraform apply -refresh-only`
 (state pull backup first); a plain `plan` refreshes in memory only.
 
-Where this lands in the trees (frasers, converted 2026-08-07):
+Where this lands in a live customer tree (converted 2026-08-07):
 
 - **network/hub.tf `huaweicloud_vpc_eip.this`** - unset by design. The one hub
   EIP is `billed_by = "traffic"` and therefore cannot go monthly at all.
 - **network/hub.tf `huaweicloud_natv3_gateway.hub`** - unset by design, and must
   stay unset: Read never returns `charging_mode`, so state stays null forever
   and any pinned value is a permanent ForceNew replace of the gateway. Both
-  frasers gateways are monthly; the only evidence is a non-empty `billing_info`
+  gateways there are monthly; the only evidence is a non-empty `billing_info`
   (BSS order id) in state.
 - **12-workloads workload-vm `huaweicloud_compute_instance.this`** - pinned
   `prePaid` with `period_unit`/`period` in `ignore_changes`, because leaving it
   `postPaid` against the converted instances fails every apply.
 - **12-workloads workload-vm `huaweicloud_evs_volume.data`** - unset; the disks
-  convert with their ECS. Pinning would have replaced (destroyed) the four fpcs
+  convert with their ECS. Pinning would have replaced (destroyed) the four data
   volumes that were still pay-per-use at the time.
 - **12-workloads cbr `huaweicloud_cbr_vault.this`** - all four stay postPaid on
   purpose. They set `auto_expand = true`, and the UAT vaults are only at their
-  current size because auto-expand grew them (fpcs-sg-uat 890/936 GB = 95%);
+  current size because auto-expand grew them (one UAT vault stood at 95% full);
   freezing that on a monthly plan fails backups within days.
 
 ## OBS lifecycle rules (12-workloads obs-backup)
