@@ -1,8 +1,8 @@
-# 09-dns
+# dns
 
 DNS for the landing zone: public and private zones with their records, plus
 the hybrid resolver (inbound and outbound endpoints, forwarding rules, and
-query logging). Used by the 07-network-dns environment, which must run after
+query logging). Used by the 08-network-dns environment, which must run after
 05-network.
 
 ## What it creates

@@ -1,8 +1,8 @@
-# 13-edge-protection
+# edge-protection
 
 Edge protection in the network hub account: Anti-DDoS thresholds on public
 IPs, plus a dedicated WAF instance with one shared policy and the protected
-domains. Used by the 10-security environment.
+domains. Used by the 07-security environment.
 
 ## What it builds
 

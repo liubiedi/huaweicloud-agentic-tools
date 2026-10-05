@@ -1,9 +1,10 @@
-# 10-cfw
+# cfw
 
 The rule set for the Cloud Firewall. The firewall itself is created by
-03-network; this module only manages what runs on it: address groups, domain
-groups, service groups, ACL rules, and black/white lists. Used by the 08-network-cfw
-environment, which must run after 05-network.
+the network module in 05-network; this module only manages what runs on it:
+address groups, domain groups, service groups, ACL rules, and black/white
+lists. Used by the 09-network-cfw environment, which must run after
+05-network.
 
 The environment reads the firewall ID from the network state and passes in
 the firewall's two protected objects:

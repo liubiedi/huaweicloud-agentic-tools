@@ -1,8 +1,9 @@
-# 11-vpn
+# vpn
 
 Site-to-cloud VPN: the cloud-side gateways, the customer gateways (your
-on-prem devices), and the IPsec connections between them. Used by 05-network (VPN is merged into the network env and applies with the hub).
-
+on-prem devices), and the IPsec connections between them. Used by the
+10-network-vpn environment, which runs after 05-network and reads the hub
+IDs from its state.
 
 ## Gateway attachment and public IPs
 

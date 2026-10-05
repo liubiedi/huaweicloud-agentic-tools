@@ -1,4 +1,4 @@
-# 01-organization
+# organization
 
 The organization itself: OUs, member accounts, the Identity Center instance,
 trusted services and delegated admins, and an optional tag policy. Used by the
@@ -27,5 +27,5 @@ trusted services and delegated admins, and an optional tag policy. Used by the
 - Accounts cannot be destroyed by Terraform in a useful way (Huawei requires
   a manual close-and-wait flow), so treat account rows as append-only.
 - Delegated admins matter downstream: LTS delegation decides where
-  12-log-aggregation runs, Config delegation decides where the org
+  log-aggregation runs, Config delegation decides where the org
   aggregator lives.

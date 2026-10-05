@@ -1,6 +1,7 @@
-# 06-compliance-audit
+# compliance-audit
 
-Runs in the logging account. Owns the audit backbone:
+Runs in the logging account. Used by the 06-observability environment.
+Owns the audit backbone:
 
 - The organization-wide CTS tracker (records every account's API activity)
 - Three OBS buckets: audit events, access logs, and the log archive

@@ -1,8 +1,9 @@
-# 07-ops-monitoring
+# ops-monitoring
 
 Operations monitoring, deployed once per ops account: a central SMN
 notification topic with subscriptions, plus CES alarms (custom rules and
-Huawei's ready-made one-click bundles).
+Huawei's ready-made one-click bundles). Used by the 06-observability
+environment.
 
 ## One-click alarm bundles
 
