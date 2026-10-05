@@ -1,13 +1,14 @@
-# 03-network
+# network
 
 Hub and spoke networking. One module, two call modes, picked by enable
-flags.
+flags. Used by the 05-network environment: hub and spokes in one apply, and
+the hub's Cloud Firewall instance lives here.
 
 ## Hub mode (network hub account)
 
 ```hcl
 module "network_hub" {
-  source    = "../../../huaweicloud-agentic-tools/modules-v2/network"
+  source    = "../../modules/network"
   providers = { huaweicloud = huaweicloud.lz_infra }
 
   enable_hub = true
@@ -20,7 +21,7 @@ module "network_hub" {
 
 ```hcl
 module "network_spoke_app_prod" {
-  source    = "../../../huaweicloud-agentic-tools/modules-v2/network"
+  source    = "../../modules/network"
   providers = { huaweicloud = huaweicloud.lz_app_prod }
 
   enable_spoke   = true

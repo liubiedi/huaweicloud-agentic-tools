@@ -2,9 +2,9 @@
 
 Context for AI agents in this repo. Full Terraform Landing Zone across the 9 CAF governance domains. Provider `huaweicloud/huaweicloud ~> 1.87`, Terraform `>= 1.6.3`.
 
-## Active layout — modules-v2 / envs-v2
+## Active layout — modules-v2
 
-Build target: **`modules-v2/`** (14 modules, named by domain - no numbers; only envs are numbered) composed by **`huawei-lz/envs-v2/`** (canonical scaffold) and one live tree per customer (**`huawei-lz/envs-<customer>/`**). Env inputs + the `*.generated.tf` fan-outs (04-perimeter tagging/config, 06-observability ops/log-converge, 05-network spokes) are generated from the Excel spec by `lz_spec/build_envs.py`. The v1 catalogue was retired 2026-07-10 (archived in the workspace backups).
+Build target: **`modules-v2/`** (14 modules, named by domain - no numbers; only envs are numbered) composed by the pipeline repo's **`terraform/scaffold/`** (canonical scaffold; **`terraform/envs-example/`** is the reference tree built from the example spec). Customer trees live outside this workspace, one per engagement. Env inputs + the `*.generated.tf` fan-outs (04-perimeter tagging/config, 06-observability ops/log-converge, 05-network spokes) are generated from the spec by the pipeline's `lzctl build`. The v1 catalogue was retired 2026-07-10 (archived in the workspace backups).
 
 | modules-v2 | Domain | Feeds env |
 |---|---|---|

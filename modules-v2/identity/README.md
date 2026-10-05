@@ -1,6 +1,7 @@
-# 02-identity
+# identity
 
-Identity and permissions. Two independent halves, each behind an enable flag.
+Identity and permissions, used by the 03-identity environment. Two
+independent halves, each behind an enable flag.
 
 ## Identity Center content (runs in the master account)
 

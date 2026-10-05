@@ -1,8 +1,8 @@
-# secgroups (module 15)
+# secgroups
 
 Workload security groups + rules, fully declarative. One module call per member
 account (assume_role provider); rows come from the `11_SGACL` sheet
-(SecurityGroups / SGRules tables) and land in `envs/09-network-sgacl`.
+(SecurityGroups / SGRules tables). Used by the 11-network-sgacl environment.
 
 Design points:
 

@@ -1,4 +1,4 @@
-# 12-log-aggregation
+# log-aggregation
 
 Collects logs from every account into one place. Runs in the log-admin
 account (the LTS delegated admin). Used by the 06-observability environment.

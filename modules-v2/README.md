@@ -1,7 +1,8 @@
 # modules-v2
 
 The 14 building blocks composed by the environments (canonical scaffold in
-huawei-lz/envs-v2, deployed per customer from huawei-lz/envs-<name>). Each module is
+the pipeline repo's terraform/scaffold, reference tree in its
+terraform/envs-example; each customer deploys its own tree). Each module is
 plain Terraform and does one job. Folders are named by domain and carry no
 numbers - only environments are numbered, because only environments have a
 deploy order.
@@ -41,6 +42,6 @@ deploy order.
 ## Apply order
 
 The environments already call these modules in the right order. Apply them
-in number order: 00-bootstrap through 10-security. The full sequence and the
-reasons behind it are in the repo CLAUDE.md; per-environment inputs come from
-the Excel workbook via lz_spec/build_envs.py.
+in number order: 00-bootstrap through 11-network-sgacl. The full sequence and
+the reasons behind it are in the repo CLAUDE.md; per-environment inputs come
+from the spec via the pipeline's `lzctl build`.

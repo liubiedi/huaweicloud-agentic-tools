@@ -1,12 +1,14 @@
 # HuaweiCloud Landing Zone - Terraform library
 
 The module library for the Excel-driven HuaweiCloud Landing Zone. The
-environments that compose these modules live in `../huawei-lz/`:
+environments that compose these modules live in the pipeline repo
+(`huawei-cloud-landing-zone-pipeline`):
 
-- `../huawei-lz/envs-v2/` - canonical environment scaffold (new deployments)
-- `../huawei-lz/envs-<customer>/` - live customer deployments, one tree each
-- `../huawei-lz/handover-docs/` - operator docs and day-2 cookbooks shipped
-  with the customer handover
+- `terraform/scaffold/` - canonical environment scaffold (new deployments)
+- `terraform/envs-example/` - reference tree built from the example spec
+
+Customer deployments are kept outside both repos, one tree each, and ship with
+the pipeline's handover export.
 
 Provider pin: `huaweicloud/huaweicloud ~> 1.87`, Terraform `>= 1.6.3`.
 
@@ -19,8 +21,8 @@ Provider pin: `huaweicloud/huaweicloud ~> 1.87`, Terraform `>= 1.6.3`.
 | `docs/` | PRD and internal design notes. |
 
 Environment inputs (`terraform.tfvars.json`) and the per-account fan-out files
-are generated from the customer Excel workbook by `../lz_spec/build_envs.py`;
-`../lz_spec/verify_pipeline.py` is the regression harness. The generation
+are generated from the customer spec by the pipeline's `lzctl build`;
+`lzctl check` is the regression harness. The generation
 pipeline is optional tooling: every environment plans and applies as plain
 Terraform without it.
 

@@ -1,6 +1,6 @@
-# 04-perimeter
+# perimeter
 
-Three things: the SCP guardrails, the predefined tag dictionary per account,
+Used by the 04-perimeter environment. Three things: the SCP guardrails, the predefined tag dictionary per account,
 and the Config (RMS) organization setup with conformance packs.
 
 ## How the guardrails are packaged

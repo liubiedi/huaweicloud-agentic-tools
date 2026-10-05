@@ -1,6 +1,7 @@
-# 05-security
+# security
 
-SecMaster in the security account: one workspace that ingests logs from the
+SecMaster in the security account, used by the 07-security environment: one
+workspace that ingests logs from the
 other accounts through cloud log resources. Host security (HSS) and database
 security (DBSS) are wired in but switched off by default.
 

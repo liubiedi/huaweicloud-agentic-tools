@@ -1,6 +1,6 @@
-# 08-financial
+# financial
 
-Financial management. Three parts, each behind an enable flag:
+Financial management, used by the 02-finance environment. Three parts, each behind an enable flag:
 
 - enable_multi_ep (master account): creates the cost-center enterprise
   projects.
