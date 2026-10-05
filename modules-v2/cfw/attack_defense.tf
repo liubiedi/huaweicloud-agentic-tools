@@ -38,8 +38,7 @@ resource "huaweicloud_cfw_advanced_ips_rule" "reverse_shell" {
   object_id      = var.internet_object_id
   fw_instance_id = var.fw_instance_id
   param          = each.value.param != "" ? each.value.param : "{}"
-  # Block-IP action
-  action = 2
+  action         = var.reverse_shell_action
   # Enabled status
   status = 1
 

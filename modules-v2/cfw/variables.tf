@@ -34,7 +34,18 @@ variable "enable_anti_virus" {
 variable "enable_reverse_shell_defense" {
   type        = bool
   default     = false
-  description = "Set every reverse-shell advanced IPS rule on the internet border to block+enabled (action-style; re-apply reasserts)."
+  description = "Set every reverse-shell advanced IPS rule on the internet border to reverse_shell_action + enabled (action-style; re-apply reasserts)."
+}
+
+variable "reverse_shell_action" {
+  type        = number
+  default     = 2
+  description = "Action for the reverse-shell rules: 0 log only, 1 block session, 2 block IP. A change replaces each rule assertion."
+
+  validation {
+    condition     = contains([0, 1, 2], var.reverse_shell_action)
+    error_message = "reverse_shell_action must be 0 (log only), 1 (block session) or 2 (block IP)."
+  }
 }
 
 # --- Object groups ---
