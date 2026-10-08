@@ -82,6 +82,8 @@ variable "permission_sets" {
     system_policies = optional(list(string), [])
     # Identity policy names (v5)
     system_identity_policies = optional(list(string), [])
+    # One custom IAM 5.0 policy document as a JSON string
+    custom_policy = optional(string)
   }))
   default = {
     LzAdministrator = {
@@ -110,12 +112,23 @@ variable "permission_sets" {
 
 variable "account_assignments" {
   type = list(object({
-    account_id     = string
-    group_name     = string
+    account        = string
     permission_set = string
+    group          = optional(string)
+    user           = optional(string)
   }))
   default     = []
-  description = "Bind (group, permission_set, account) triples. account_id from 01-foundation's accounts output."
+  description = "Grant a permission set to one group or one user in one account, all by name. Groups and users may be synced from an external directory."
+  validation {
+    condition     = alltrue([for a in var.account_assignments : (a.group != null) != (a.user != null)])
+    error_message = "Each assignment names exactly one of group or user."
+  }
+}
+
+variable "account_ids" {
+  type        = map(string)
+  default     = {}
+  description = "Account name -> account ID, for account_assignments. Include the master account."
 }
 
 variable "registered_regions" {

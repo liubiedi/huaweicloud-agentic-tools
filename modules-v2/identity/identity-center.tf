@@ -42,6 +42,40 @@ locals {
     for ps_name, ps in var.permission_sets : ps_name => ps.system_identity_policies
     if length(ps.system_identity_policies) > 0
   } : {}
+
+  ps_to_custom_policy = local.ic_enabled ? {
+    for ps_name, ps in var.permission_sets : ps_name => ps.custom_policy
+    if ps.custom_policy != null
+  } : {}
+
+  # Principal lookup: groups created here, plus every group and user in the identity store
+  assignments_enabled = local.ic_enabled && length(var.account_assignments) > 0
+  group_id = merge(
+    { for g in try(data.huaweicloud_identitycenter_groups.all[0].groups, []) : g.name => g.id },
+    { for k, g in huaweicloud_identitycenter_group.this : k => g.id },
+  )
+  user_id = merge(
+    { for u in try(data.huaweicloud_identitycenter_users.all[0].users, []) : u.user_name => u.id },
+    { for k, u in huaweicloud_identitycenter_user.this : k => u.id },
+  )
+
+  assignments = {
+    for a in var.account_assignments :
+    "${a.account}__${coalesce(a.group, a.user)}__${a.permission_set}" => a
+  }
+}
+
+# --- Identity store directory ---
+data "huaweicloud_identitycenter_groups" "all" {
+  count = local.assignments_enabled ? 1 : 0
+
+  identity_store_id = var.identity_store_id
+}
+
+data "huaweicloud_identitycenter_users" "all" {
+  count = local.assignments_enabled ? 1 : 0
+
+  identity_store_id = var.identity_store_id
 }
 
 # --- IAM policy catalog ---
@@ -116,39 +150,50 @@ resource "huaweicloud_identitycenter_system_identity_policy_attachment" "this" {
   policy_ids        = each.value
 }
 
+# --- Custom policy attachments ---
+resource "huaweicloud_identitycenter_custom_policy_attachment" "this" {
+  for_each = local.ps_to_custom_policy
+
+  instance_id       = var.identity_center_instance_id
+  permission_set_id = huaweicloud_identitycenter_permission_set.this[each.key].id
+  custom_policy     = each.value
+}
+
 # --- Account assignments ---
 
 resource "huaweicloud_identitycenter_account_assignment" "this" {
-  for_each = local.ic_enabled ? {
-    for a in var.account_assignments :
-    "${a.account_id}__${a.group_name}__${a.permission_set}" => a
-  } : {}
+  for_each = local.ic_enabled ? local.assignments : {}
 
   instance_id       = var.identity_center_instance_id
   permission_set_id = huaweicloud_identitycenter_permission_set.this[each.value.permission_set].id
-  principal_id      = huaweicloud_identitycenter_group.this[each.value.group_name].id
-  principal_type    = "GROUP"
-  target_id         = each.value.account_id
+  principal_id      = each.value.group != null ? local.group_id[each.value.group] : local.user_id[each.value.user]
+  principal_type    = each.value.group != null ? "GROUP" : "USER"
+  target_id         = var.account_ids[each.value.account]
   target_type       = "ACCOUNT"
+
+  # Note: The provider does not read target_type back, so an imported assignment would otherwise be replaced.
+  lifecycle {
+    ignore_changes = [target_type]
+  }
 }
 
 # --- Permission-set provisioning ---
 
-# Note: One provisioning per account and permission set, however many groups share it.
+# Note: One provisioning per account and permission set, however many principals share it.
 resource "huaweicloud_identitycenter_provision_permission_set" "this" {
   for_each = local.ic_enabled ? {
     for pair in distinct([
       for a in var.account_assignments : {
-        account_id     = a.account_id
+        account        = a.account
         permission_set = a.permission_set
       }
     ]) :
-    "${pair.account_id}__${pair.permission_set}" => pair
+    "${pair.account}__${pair.permission_set}" => pair
   } : {}
 
   instance_id       = var.identity_center_instance_id
   permission_set_id = huaweicloud_identitycenter_permission_set.this[each.value.permission_set].id
-  account_id        = each.value.account_id
+  account_id        = var.account_ids[each.value.account]
 
   depends_on = [huaweicloud_identitycenter_account_assignment.this]
 }
