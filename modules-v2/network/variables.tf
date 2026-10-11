@@ -273,6 +273,12 @@ variable "cfw_lts_log_group_name" {
   description = "Name of the LTS log group the hub creates for CFW logs (when cfw_lts_log_enable=true)."
 }
 
+variable "cfw_lts_ttl_in_days" {
+  type        = number
+  default     = 30
+  description = "Retention (days) of the CFW traffic/access/attack LTS log group."
+}
+
 # --- Firewall log streams ---
 variable "cfw_lts_traffic_stream_name" {
   type        = string

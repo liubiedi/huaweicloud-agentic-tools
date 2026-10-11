@@ -1,6 +1,6 @@
 # modules-v2
 
-The 14 building blocks composed by the environments (canonical scaffold in
+The 15 building blocks composed by the environments (canonical scaffold in
 the pipeline repo's terraform/scaffold, reference tree in its
 terraform/envs-example; each customer deploys its own tree). Each module is
 plain Terraform and does one job. Folders are named by domain and carry no

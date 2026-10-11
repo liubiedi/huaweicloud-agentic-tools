@@ -167,7 +167,7 @@ resource "huaweicloud_lts_group" "cfw" {
   count = local._create_cfw_group ? 1 : 0
 
   group_name            = var.cfw_lts_log_group_name
-  ttl_in_days           = 30
+  ttl_in_days           = var.cfw_lts_ttl_in_days
   enterprise_project_id = var.enterprise_project_id
   tags                  = var.tags
 }

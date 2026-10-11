@@ -4,7 +4,7 @@ Context for AI agents in this repo. Full Terraform Landing Zone across the 9 CAF
 
 ## Active layout — modules-v2
 
-Build target: **`modules-v2/`** (14 modules, named by domain - no numbers; only envs are numbered) composed by the pipeline repo's **`terraform/scaffold/`** (canonical scaffold; **`terraform/envs-example/`** is the reference tree built from the example spec). Customer trees live outside this workspace, one per engagement. Env inputs + the `*.generated.tf` fan-outs (04-perimeter tagging/config, 06-observability ops/log-converge, 05-network spokes) are generated from the spec by the pipeline's `lzctl build`. The v1 catalogue was retired 2026-07-10 (archived in the workspace backups).
+Build target: **`modules-v2/`** (15 modules, named by domain - no numbers; only envs are numbered) composed by the pipeline repo's **`terraform/scaffold/`** (canonical scaffold; **`terraform/envs-example/`** is the reference tree built from the example spec). Customer trees live outside this workspace, one per engagement. Env inputs + the `*.generated.tf` fan-outs (04-perimeter tagging/config, 06-observability ops/log-converge, 05-network spokes) are generated from the spec by the pipeline's `lzctl build`. The v1 catalogue was retired 2026-07-10 (archived in the workspace backups).
 
 | modules-v2 | Domain | Feeds env |
 |---|---|---|
@@ -20,11 +20,11 @@ Build target: **`modules-v2/`** (14 modules, named by domain - no numbers; only 
 | `dns` | Public + private zones, record sets, hybrid resolver (in/outbound endpoints, forwarding rules, query logs); name→ID from 05-network state (`vpc_ids`/`subnet_ids`) + LTS | `08-network-dns` |
 | `cfw` | CFW **rule plane** on the 05-network hub CFW (not recreated): address/domain/service groups, ACL rules (Kind eip/nat/vpc → internet/VPC border), black/white lists. Env resolves protect-object IDs (0=internet, 1=VPC) via the `cfw_firewalls` data source. Live-API rules: address-group members must NOT overlap (create returns no ID); rules use `sequence{top=0,bottom=1}` (unanchored top=0 → "dest_rule_id must not be null"); internet-border rules need `direction` (default inbound REJECTS domain groups, CFW.00400028 — module defaults nat→outbound, eip→inbound); catch-all denies (deny+any/any/any) are created via a separate `depends_on`-ordered `catchall` resource so they always land at the very bottom; **bind ALL address/service groups to the internet object** (vpc-bound groups work in rules but are INVISIBLE in the console/list APIs — canary-confirmed 2026-07-08). Rule tagging is per customer: a customer may run the rules UNTAGGED (no `default_tags` on the cfw provider alias). Attack defense (attack_defense.tf, both toggles default off): `enable_anti_virus` (anti_virus on the internet object, all 7 protocols, block) + `enable_reverse_shell_defense` (every type-1 advanced IPS rule -> `reverse_shell_action` + enabled; action-style, re-apply reasserts). `reverse_shell_action` (validated 0 log only / 1 block session / 2 block IP, default 2) - a change replaces each assertion (`enable_force_new`), never unsets the rule. IPS protection mode + virtual patching live on the FIREWALL INSTANCE (network module `cfw_ips_protection_mode`/`cfw_ips_patch_enabled`, null = console-managed). Alarm notifications (alarms.tf, all 4 toggles default off): `enable_attack_alarm`/`enable_traffic_alarm`(80%)/`enable_eip_unprotected_alarm`/`enable_threat_intel_alarm` → `cfw_alarm_config` per type, delivered to sheet-09 `alarm_topic_name` (SMN topic in the CFW account, name→URN via `smn_topics` + postcondition). | `09-network-cfw` |
 | `vpn` | S2C VPN: `vpn_gateway` (attach vpc/er; auto-selects AZs via `vpn_gateway_availability_zones`; public→2 EIPs inline — eip block changes FORCE-REPLACE the gateway = new public IPs), `vpn_customer_gateway`, `vpn_connection` (`gateway_ip`=EIP by `ha_role` master=eip1/slave=eip2); PSK per connection. **ER routing**: per-gateway assoc (→`er-hybrid`, DefaultToCFW) + propagation (→er-outbound) on `er_attachment_id`; NO statics to VPN attachments (ER.04006105). **Standalone env since 2026-07** (was merged into 05-network): `module.vpn` is generated into `10-network-vpn/vpn.generated.tf`; hub/spoke IDs from the `05-network` remote state; fed by sheet `10_VPN`. | `10-network-vpn` |
-| `secgroups` | Workload security groups (module 15): `networking_secgroup` + `networking_secgroup_rule`, one module call per member account (assume_role fan-out generated into `sgacl.generated.tf`). `delete_default_rules=true` - a group's SGRules rows ARE its whole policy (explicit egress row required). Rule `for_each` keys are content-addressed (`sg|dir|proto|ports|remote`) so row edits never churn siblings; `remote` = CIDR / `sg:<name>` (same account only) / `self`. SGs are region-scoped (no VPC input); NIC attachment is workload/migration scope. Sheet `11_SGACL`; NetworkACLs/ACLRules tables RESERVED (LZR-031 fails enabled rows). | `11-network-sgacl` |
+| `secgroups` | Workload security groups: `networking_secgroup` + `networking_secgroup_rule`, one module call per member account (assume_role fan-out generated into `sgacl.generated.tf`). `delete_default_rules=true` - a group's SGRules rows ARE its whole policy (explicit egress row required). Rule `for_each` keys are content-addressed (`sg|dir|proto|ports|remote`) so row edits never churn siblings; `remote` = CIDR / `sg:<name>` (same account only) / `self`. SGs are region-scoped (no VPC input); NIC attachment is workload/migration scope. Sheet `11_SGACL`; NetworkACLs/ACLRules tables RESERVED (LZR-031 fails enabled rows). | `11-network-sgacl` |
 | `log-aggregation` | Org LTS log aggregation in the **LTS delegated-admin** account (needs `assume_role` provider — creates OBS): `lts_log_converge_switch`, target groups/streams (TTL 90) owned by the module + `lts_log_converge` per REMOTE member (source IDs from generated per-account `lts_streams`/`lts_groups` lookups in `logconverge.generated.tf`); admin-LOCAL sources skip converge and transfer directly; `lts_transfer` (OBS cycle) per group → KMS-encrypted archive bucket (365d) | `06-observability` |
 | `edge-protection` | Hub-account edge protection: `antiddos_basic` per EIP (threshold + SMN alarm by topic NAME via `smn_topics` lookup) + dedicated WAF (`waf_dedicated_instance` postPaid + auto ECS flavor via `compute_flavors`, own SG if none given, shared `waf_policy`, `waf_dedicated_domain` per row). CNAD/AAD need pre-purchased instances — out of scope | `07-security` |
 
-**Apply order (strictly numeric since the 2026-07 renumber):** `00-bootstrap → 01-foundation → 02-finance → 03-identity → 04-perimeter → 05-network → 06-observability → 07-security → 08-network-dns → 09-network-cfw → 10-network-vpn → 11-network-sgacl` (env numbers now match the workbook sheet numbers; VPN un-merged 2026-07 into `10-network-vpn`. Each env's state key names its own directory (`envs/<env-dir>/terraform.tfstate`; the pipeline's doctrine-sync test enforces it). A tree deployed before the renumber may still carry its old keys - never rename a live key, that is state surgery). Workload modules (VMs, vaults, workload buckets) are customer-only and live in no product tree: a customer workload env is hand-maintained outside the product pipeline (no sheet/builder/emitter/catalogue), resolves subnets/SGs/EPs by name, and so applies after 02/05/11. Network precedes observability because the LogConverge lookups need the CFW/flow-log streams `05-network` creates; the DNS query-log LTS group/stream are OWNED by `06-observability` (created there, converged there; `08-network-dns` attaches the resolver access log with `manage_query_log_infra=false`) - a fresh deploy is strictly one pass. `08-network-dns`/`09-network-cfw` resolve VPC/subnet/firewall/route-table IDs from `05-network` remote state; `10-network-vpn` resolves hub/spoke IDs from the `05-network` remote state; `07-security` reads `05-network` (EIP/VPC IDs for module 13) + `06-observability`. Tagging is merged into `04-perimeter`; hub + spokes are one `05-network` apply (spokes self-wire ER associations off the hub's `route_table_ids` output).
+**Apply order (strictly numeric since the 2026-07 renumber):** `00-bootstrap → 01-foundation → 02-finance → 03-identity → 04-perimeter → 05-network → 06-observability → 07-security → 08-network-dns → 09-network-cfw → 10-network-vpn → 11-network-sgacl` (env numbers now match the workbook sheet numbers; VPN un-merged 2026-07 into `10-network-vpn`. Each env's state key names its own directory (`envs/<env-dir>/terraform.tfstate`; the pipeline's doctrine-sync test enforces it). A tree deployed before the renumber may still carry its old keys - never rename a live key, that is state surgery). Workload modules (VMs, vaults, workload buckets) are customer-only and live in no product tree: a customer workload env is hand-maintained outside the product pipeline (no sheet/builder/emitter/catalogue), resolves subnets/SGs/EPs by name, and so applies after 02/05/11. Network precedes observability because the LogConverge lookups need the CFW/flow-log streams `05-network` creates; the DNS query-log LTS group/stream are OWNED by `06-observability` (created there, converged there; `08-network-dns` attaches the resolver access log with `manage_query_log_infra=false`) - a fresh deploy is strictly one pass. `08-network-dns`/`09-network-cfw` resolve VPC/subnet/firewall/route-table IDs from `05-network` remote state; `10-network-vpn` resolves hub/spoke IDs from the `05-network` remote state; `07-security` reads `05-network` (EIP/VPC IDs for `edge-protection`) + `06-observability`. Tagging is merged into `04-perimeter`; hub + spokes are one `05-network` apply (spokes self-wire ER associations off the hub's `route_table_ids` output).
 
 **Hybrid routing + DNS (cross-module):** the ER route tables are FIXED — `er-inbound` / `er-outbound` / `er-hybrid`, hard-coded by the workbook pipeline (2026-07: the `ERRouteTables` sheet table + `inbound/outbound_route_table` settings were removed; the module variables are unchanged). VPN/DC traffic is CFW-inspected via `er-hybrid` (DefaultToCFW, auto 0/0→CFW **and auto `<spoke_private_supernet>`→CFW**) that the VPN gateway's ER attachment associates to (`09_VPN.ERAssocRouteTable`). **Both routes are required** — the hybrid table's routes are what get advertised to the on-prem peer, and a 0/0 default is often not advertised/accepted by the peer device, so the supernet route is the one on-prem reliably learns; never remove it as "duplicate of 0/0" (see engineering-notes `extra_supernet_to_cfw`). on-prem routes reach er-outbound **only via the gateway's PROPAGATION** (`ERPropRouteTable` — BGP-learned, or PeerSubnets for static tunnels). **ER rejects static routes to VPN attachments** (ER.04006105; allowed: vpc/peering/cfw/connect/5G) — there is no static fallback, so cloud→DC flows exist only while the tunnel/BGP is up. Org-wide private DNS uses the **hub-resolver pattern**: `05_Network Settings.subnet_dns_servers` points every hub+spoke subnet's DHCP at the 08-network-dns INBOUND endpoint IPs (private-zone VPC association is same-account only; the provider has no zone sharing) — resolver rules must be associated to the resolver VPC.
 
@@ -51,24 +51,31 @@ write it in the notes doc instead and keep the shipped comment short.
 ## Critical constraints (never change)
 
 - CTS org tracker **must** use `region = "cn-north-4"` (global endpoint).
-- SCPs **must** use `"Version": "5.0"` (OPA rejects v2012).
+- SCPs **must** use `"Version": "5.0"` (the pipeline's LZR-002 rule fails any v2012 policy document).
 - OBS state backend requires exactly the 5 `skip_*` flags.
 - Apply envs **strictly in order** (see above).
 - **SCP packing in `perimeter`:** guardrails pack into **combined SCP documents** (one Deny statement each; Huawei caps attached SCPs at **5 per entity** incl. the system `FullAccess`). `scps.<policy>.enforce = true` → its statement goes in the **attached/LIVE** doc; `false` → a **staged, unattached** doc. Tag-governance guardrails (`require_mandatory_tags` + `require_tag_keys`) go in their OWN doc `lz-landing-zone-tag-guardrails` (`tag_policy_name`); the rest in `lz-landing-zone-guardrails` (`policy_name`). `max_statements_per_scp` (default 10) controls packing; 5,120-char limit. **`require_mandatory_tags` emits ONE Deny statement PER tag** (Huawei ANDs keys within a block, so one block only denies fully-untagged creates; separate statements OR to "deny if ANY tag missing"). **Its action list must only contain create APIs that accept tags IN the request** — OBS buckets and the vpc family (vpcs/subnets/securityGroups) tag AFTER create, so listing them denies ALL creation (SYS.0403, confirmed live 2026-07); they are excluded and covered detectively by Config. Native dry-run preview is **not** used (needs an OBS reports bucket + an Organizations trust agency). The 9 guardrails: `deny_leave_org`, `deny_root_user`, `deny_unauthorized_ram_share`, `deny_unauthorized_rms_aggregation`, `require_mandatory_tags`, `deny_public_obs`, `protect_cts_tracker`, `deny_outside_allowed_region`, `require_tag_keys` (validated vs a customer identity-guardrails workbook + Huawei `org_03_0081`). **`require_tag_keys`** denies creates unless request tag keys ∈ an approved set (`g:TagKeys`, case-sensitive) from sheet-01 `TagPolicies`; toggled by sheet-01 `Settings.enforce_tag_keys_scp`. **Valid SCP action service codes vary by tenant** — the live API rejects some documented codes (e.g. `bss`, `dew`); the `services` defaults for `deny_root_user`/`deny_outside_allowed_region` use only tenant-confirmed codes.
 
-## Pipeline tooling (lz_spec/)
+## Pipeline tooling (pipeline repo)
 
-- `build_envs.py` - workbook -> tfvars + generated fan-outs.
-- `verify_pipeline.py` - regression harness: `regen-diff` (regeneration must be
-  a no-op vs the live tree), `validate` (terraform validate all envs),
-  `template-check` (blank template matches schema.py). Run it around EVERY
-  pipeline or module change.
-- `export_handover.py` - builds the customer artifact (<customer>/terraform):
-  modules + envs + handover-docs, module paths rewritten, `*.generated.tf`
-  renamed to plain names, secrets stripped, MANIFEST.txt checksums. The
-  artifact is generated - never hand-edit it; edit the sources and re-export.
-- `gen_template.py <out.xlsx>` - regenerate the blank workbook template after
-  any schema.py change (template-check enforces this).
+The generation pipeline lives in the pipeline repo at
+`huawei-cloud-landing-zone-pipeline/pipeline/lz_pipeline` (`lzctl build` / `check` / `export`);
+`pipeline/lz_spec/` keeps the schema authority (`schema.py`), the regression harness and the
+blank-template generator.
+
+- `lzctl build` - spec -> tfvars + generated fan-outs (`lz_spec/build_envs.py` is a legacy
+  workbook-path shim over the same engine).
+- `lzctl check` = `python -m lz_spec.verify_pipeline` - regression harness: `regen-diff`
+  (regeneration must be a no-op vs the live tree), `validate` (terraform validate all envs),
+  `template-check` (blank template matches schema.py). Run it around EVERY pipeline or module
+  change.
+- `lzctl export` (`lz_pipeline/export_v2.py`; the former `export_handover.py` was folded into
+  it) - builds the customer artifact (<customer>/terraform): modules + envs + handover-docs,
+  module paths rewritten, `*.generated.tf` renamed to plain names, secrets stripped,
+  MANIFEST.txt checksums. The artifact is generated - never hand-edit it; edit the sources and
+  re-export.
+- `lz_spec/gen_template.py <out.xlsx>` - regenerate the blank workbook template after any
+  schema.py change (template-check enforces this).
 
 ## Codegen vs IaC split — handover constraint (never violate)
 
@@ -77,7 +84,7 @@ Excel workbook or the `lz_spec` codegen/template-gen scripts**. The IaC must be 
 *exclusively from the IaC*. For every future change/apply:
 
 - **Prioritize putting logic, transformation, and heavy lifting in the codegen scripts**
-  (`lz_spec/gen_template.py`, `lz_spec/build_envs.py`) — precompute at generation time rather
+  (the pipeline's `lz_pipeline` builders/emitters, `lz_spec/gen_template.py`) — precompute at generation time rather
   than encode in HCL. Emitted envs must be plain, readable Terraform + `terraform.tfvars.json`
   a human can edit directly.
 - **No clever HCL meta-programming** whose intent is only legible alongside the generator
@@ -107,7 +114,7 @@ Both use the **master** AK/SK to assume the member's `OrganizationAccountAccessA
 
 | Mode | Config | Yields | Works for | Fails / wrong account |
 |---|---|---|---|---|
-| **Agency token** (what `build_envs._provider_alias_block` emits) | provider attrs `agency_name` + `agency_domain_name` (+ master keys, `domain_name`) | member-**scoped IAM token** only | `organizations`/SCP, IAM token ops, RMS recorder (domain-scoped), EPS, TMS | **OBS** signs with the master keys → **bucket lands in MASTER**; **v5 IAM** (`/v5/*`) → `PAP5.0046 missing x-user-profile`; **org-scoped RMS** (ORG aggregator, org conformance) → `missing request_proof` |
+| **Agency token** (what the pipeline's `lz_pipeline.core.emitters.common._provider_alias_block` emits) | provider attrs `agency_name` + `agency_domain_name` (+ master keys, `domain_name`) | member-**scoped IAM token** only | `organizations`/SCP, IAM token ops, RMS recorder (domain-scoped), EPS, TMS | **OBS** signs with the master keys → **bucket lands in MASTER**; **v5 IAM** (`/v5/*`) → `PAP5.0046 missing x-user-profile`; **org-scoped RMS** (ORG aggregator, org conformance) → `missing request_proof` |
 | **`assume_role` block** | `assume_role { agency_name=…; domain_name="<member>" }` (+ master keys) | **temp member AK/SK + SecurityToken** | **everything** incl. OBS (bucket in the member), v5 IAM (`identity_trust_agency`), org-scoped RMS | — |
 
 **Rule:** if a *member*-account env creates **OBS buckets**, **v5 IAM agencies**, or **org-scoped RMS**, use the **`assume_role` block** (`04-perimeter/config.generated.tf` does, for exactly this reason). Always set `default_tags = var.default_tags` on the cross-account provider or member SCPs (`require_mandatory_tags`) deny the create with a 403.
@@ -126,7 +133,7 @@ provider "huaweicloud" {
 }
 ```
 
-## Providers & OPA
+## Providers & plan policy
 
-- Envs generate per-account provider aliases via `build_envs`. Pass the right alias to each module call: `providers = { huaweicloud = huaweicloud.<alias> }`.
-- Plans are checked by `policies/opa/*.rego` (conftest): `deny-public-obs` (public ACL / missing versioning / missing encryption), `require-tags` (Environment/CostCenter/Owner/Project), `require-scp-v5` (Version 5.0), `region-allowlist` (region + unencrypted KMS + SSH from 0.0.0.0/0).
+- Envs generate per-account provider aliases via `lzctl build`. Pass the right alias to each module call: `providers = { huaweicloud = huaweicloud.<alias> }`.
+- Plan/tree policy is enforced by the pipeline, not this repo: `lzctl plan` triage + the LZR rule registry (`pipeline/lz_pipeline/rules.py`, e.g. LZR-002 = SCP v5 syntax). The dormant OPA/conftest policies under `policies/opa/` (nothing ran them) were deleted 2026-10-11; `policies/checkov/` stays for the pre-commit hook + CI template.

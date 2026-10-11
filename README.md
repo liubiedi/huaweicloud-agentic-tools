@@ -16,8 +16,8 @@ Provider pin: `huaweicloud/huaweicloud ~> 1.87`, Terraform `>= 1.6.3`.
 
 | Path | What it is |
 |---|---|
-| `modules-v2/` | The 14 modules, named by domain (organization, network, cfw, ...). See its README for the catalogue. Only environments carry numbers, because only environments have a deploy order (00-bootstrap through 11-network-sgacl). |
-| `policies/` | OPA/conftest checks run against plans (public OBS, mandatory tags, SCP v5 syntax, region allowlist). |
+| `modules-v2/` | The 15 modules, named by domain (organization, network, cfw, ...). See its README for the catalogue. Only environments carry numbers, because only environments have a deploy order (00-bootstrap through 11-network-sgacl). |
+| `policies/` | Checkov config (`checkov/.checkov.yaml`) for the pre-commit hook and the CI template. Plan/tree policy (SCP v5 syntax, region allowlist, ...) is enforced by the pipeline's `lzctl plan` triage + LZR rules, not by files here. |
 | `docs/` | PRD and internal design notes. |
 
 Environment inputs (`terraform.tfvars.json`) and the per-account fan-out files

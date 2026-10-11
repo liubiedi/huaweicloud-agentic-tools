@@ -80,7 +80,8 @@ jobs:
           config_file: policies/checkov/.checkov.yaml
           soft_fail: false
 
-      - name: OPA Conftest (plan output)
+      # Plan policy is enforced by the pipeline (lzctl plan triage + LZR rules); this step only produces the plan JSON for Infracost.
+      - name: Terraform Plan (JSON)
         id: plan
         working-directory: envs/${{ github.event.client_payload.env }}
         run: |
@@ -89,7 +90,6 @@ jobs:
             -var="master_secret_key=${{ secrets.HWC_MASTER_SECRET_KEY }}" \
             -var-file="terraform.tfvars" 2>&1 | tee /tmp/plan_output.txt
           terraform show -json tfplan.binary > tfplan.json
-          conftest test --policy ../../policies/opa tfplan.json
           echo "plan_output<<EOF" >> $GITHUB_OUTPUT
           tail -50 /tmp/plan_output.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -240,7 +240,7 @@ jobs:
           # Fall back to listing module blocks from plan
           " 2>/dev/null || true)
 
-          # Apply the full plan, emitting per-resource events via OPA output parsing
+          # Apply the full plan; per-resource events (parsed from apply output) are not implemented yet
           # For MVP: apply as one unit and emit success/error at env level
           emit_event STEP_START "apply:${{ github.event.client_payload.env }}" "" || true
 
@@ -320,7 +320,8 @@ jobs:
           config_file: policies/checkov/.checkov.yaml
           soft_fail: false
 
-      - name: OPA Conftest (plan output)
+      # Plan policy is enforced by the pipeline (lzctl plan triage + LZR rules); this step only produces the plan JSON for Infracost.
+      - name: Terraform Plan (JSON)
         working-directory: envs/${{ matrix.env }}
         run: |
           terraform plan -out=tfplan.binary \
@@ -328,7 +329,6 @@ jobs:
             -var="master_secret_key=${{ secrets.HWC_MASTER_SECRET_KEY }}" \
             -var-file="terraform.tfvars"
           terraform show -json tfplan.binary > tfplan.json
-          conftest test --policy ../../policies/opa tfplan.json
 
       - name: Infracost
         uses: infracost/actions/setup@v2
