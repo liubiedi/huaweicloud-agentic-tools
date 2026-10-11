@@ -1,4 +1,8 @@
-# CLAUDE.md — HuaweiCloud Agentic Tools
+# CLAUDE.md
+
+> Generated from `AGENTS.md` by `tools/gen_agent_files.py` - edit `AGENTS.md`, then regenerate. Same text, the name Claude Code loads.
+
+Canonical agent instructions for this repo; `CLAUDE.md` is generated from this file (`python ../huawei-cloud-landing-zone-pipeline/tools/gen_agent_files.py .`). Edit here.
 
 Context for AI agents in this repo. Full Terraform Landing Zone across the 9 CAF governance domains. Provider `huaweicloud/huaweicloud ~> 1.87`, Terraform `>= 1.6.3`.
 
