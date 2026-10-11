@@ -16,3 +16,15 @@ the central SMN topic. Off by default.
 
 Application monitoring (AOM) and function alarms (FGS) are stubbed out in
 aom-fgs.tf and switched off. Enable and extend there when needed.
+
+## Subscription identity
+
+Each subscription is keyed `<protocol>-<endpoint>`, so a subscriber row is
+addressed by what it is, not by its position: removing or reordering rows
+touches only the rows that changed. A duplicate protocol+endpoint row would
+collide on the key - the pipeline refuses it before build (LZR-044). An
+estate created before this change (keys `<protocol>-<index>`) moves each
+subscription once with `terraform state mv`; the pipeline's
+`tools/migrate_smn_subscriber_keys.py` prints the list from the pulled state
+and the env tfvars. A recreated email subscription is unconfirmed until the
+recipient clicks the new link, which is why the move matters.

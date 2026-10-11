@@ -10,8 +10,9 @@ resource "huaweicloud_smn_topic" "lz_alerts" {
   tags         = var.tags
 }
 
+# Note: Subscriptions are keyed by protocol and endpoint, so removing or reordering a row never recreates its siblings.
 resource "huaweicloud_smn_subscription" "this" {
-  for_each = { for idx, s in var.subscribers : "${s.protocol}-${idx}" => s }
+  for_each = { for s in var.subscribers : "${s.protocol}-${s.endpoint}" => s }
 
   topic_urn = huaweicloud_smn_topic.lz_alerts.id
   endpoint  = each.value.endpoint

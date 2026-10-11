@@ -118,6 +118,21 @@ comment in a shipped tree.
 - **vpc_subnet.spoke primary_dns/secondary_dns gated on spoke_er_attach_enabled**: the hub resolver (08-network-dns INBOUND endpoint, addressed by 05_Network Settings.subnet_dns_servers) is only reachable over the ER. An UNATTACHED spoke has no route to it, so pointing its DHCP there black-holes ALL DNS in that VPC - not just internal names, since every query goes to an unreachable IP. Left unset, the provider's buildSubnetDNSList applies the region's built-in private resolver at CREATE (ap-southeast-3 -> 100.125.1.250 / 100.125.128.250), so an isolated spoke still resolves public names. Discovered on a live tree 2026-07-30: a sandbox spoke VPC had its subnet DNS on the hub resolver IPs with no ER attachment, no routes and no peering (the sandbox account is not even in RAMSharePrincipals, so the ER is not shared to it), leaving the VPC with no working DNS at all.
   - **CAVEAT - the guard does not repair already-deployed subnets.** primary_dns/secondary_dns/dns_list are Optional+**Computed**, so a null in config means "keep the current value": terraform reports no changes and never self-corrects an existing subnet. buildSubnetDNSList only supplies the regional default on CREATE; the UPDATE path just forwards d.Get("primary_dns") (empty string) and does not re-derive. Repair an existing black-holed subnet out of band (console/API set to the regional resolver) - because config is null and the attribute is Computed, terraform then adopts the live value permanently with no drift.
 
+## ops-monitoring module
+
+### smn.tf
+
+- Subscriptions were keyed `${protocol}-${index}` until 2026-10-11: deleting or
+  reordering a subscriber row renumbered every later one and recreated it in
+  every account that runs the module - and a recreated email subscription is
+  unconfirmed, so alerts silently stopped until the recipient clicked a new
+  link. Keyed `${protocol}-${endpoint}` now; a duplicate row would collide on
+  the key, so the pipeline refuses it (LZR-044). Estates built before the
+  change move each subscription once
+  (`<pipeline>/tools/migrate_smn_subscriber_keys.py` prints the
+  `terraform state mv` list from the pulled 06-observability state and the
+  env tfvars; 2 subscribers x 4 accounts was 8 moves on the first estate).
+
 ## envs (scaffold statics)
 
 ### 05-network/main.tf
