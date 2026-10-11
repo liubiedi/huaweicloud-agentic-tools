@@ -335,7 +335,7 @@ resource "huaweicloud_natv3_gateway" "hub" {
 # --- SNAT egress rules ---
 
 resource "huaweicloud_nat_snat_rule" "hub" {
-  for_each = local.hub_enabled ? { for idx, r in var.snat_rules : "${idx}-${r.cidr}" => r } : {}
+  for_each = local.hub_enabled ? { for r in var.snat_rules : "${coalesce(r.nat_name, local._sole_nat)}|${r.eip}|${r.cidr}" => r } : {}
 
   nat_gateway_id = huaweicloud_natv3_gateway.hub[each.value.nat_name != "" ? each.value.nat_name : local._sole_nat].id
   floating_ip_id = huaweicloud_vpc_eip.this[each.value.eip].id

@@ -15,6 +15,7 @@ comment in a shipped tree.
 ## network module
 
 ### hub.tf
+- **nat_snat_rule.hub keys (2026-10-11)**: keyed `<nat>|<eip>|<cidr>` (content-addressed) instead of `<index>-<cidr>`, so reordering or deleting a row no longer replaces every later SNAT rule. Estates deployed before this change carry the old addresses: migrate with one `terraform state mv 'module.network_hub.huaweicloud_nat_snat_rule.hub["<i>-<cidr>"]' 'module.network_hub.huaweicloud_nat_snat_rule.hub["<nat>|<eip>|<cidr>"]'` per rule (state backup first; `lzctl plan` must then show no SNAT changes). Two rows with the same NAT, EIP and CIDR are a genuine duplicate and now fail at plan time (duplicate key).
 - **cfw_firewall.flavor.version**: the API rejects lowercase edition names with the opaque error "Failed to access the third-party interface" - hence the capitalization lookup.
 - **CFW rule plane**: a huaweicloud_cfw_acl_rule block was once drafted here and deferred (complex `sequence` schema); the rule plane lives in the cfw module / 08-network-cfw. Do not re-add rules to the hub.
 - **natv3_gateway.spec**: the API takes numeric specs "1".."5"; the workbook uses Small/Medium/Large/Extra-large names.
